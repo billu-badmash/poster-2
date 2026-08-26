@@ -1,0 +1,6 @@
+{
+  "name": "Poster Maker",
+  "description": "A modern template marketplace and dynamic poster generator with visual canvas editor and role-based publishing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
