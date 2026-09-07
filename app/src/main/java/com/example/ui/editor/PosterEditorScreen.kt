@@ -71,6 +71,8 @@ import androidx.compose.material.icons.filled.FormatAlignJustify
 import androidx.compose.material.icons.filled.FormatLineSpacing
 import androidx.compose.material.icons.filled.WidthNormal
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -134,11 +136,14 @@ import com.example.domain.models.TemplateStatus
 import com.example.domain.models.UserRole
 import com.example.ui.components.PosterCanvasView
 import com.example.ui.theme.*
+import com.example.utils.BackgroundPresets
 import com.example.utils.CanvasUtils
+import com.example.utils.MarketingCopyInspiration
 import com.example.utils.SmartAlignmentHelper
 import com.example.utils.StickerAssetHelper
 import com.example.utils.StickerCategory
 import com.example.utils.StickerPreset
+import com.example.utils.TypographyHelper
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -189,6 +194,7 @@ fun PosterEditorScreen(
     var showColorPickerDialog by remember { mutableStateOf(false) }
     var colorPickerTarget by remember { mutableStateOf<ColorPickerTarget?>(null) }
     var initialPickerColor by remember { mutableStateOf("#FFFFFF") }
+    var showExportDialog by remember { mutableStateOf(false) }
 
     // Undo / Redo history stacks
     val undoStack = remember { mutableStateListOf<List<CanvasElement>>() }
@@ -406,6 +412,17 @@ fun PosterEditorScreen(
         )
     }
 
+    if (showExportDialog) {
+        ExportDialog(
+            posterTitle = posterTitle,
+            canvasWidth = canvasWidth,
+            canvasHeight = canvasHeight,
+            background = background,
+            elements = elements.toList(),
+            onDismiss = { showExportDialog = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -480,6 +497,18 @@ fun PosterEditorScreen(
                             Icons.Default.Redo,
                             contentDescription = "Redo",
                             tint = if (redoStack.isNotEmpty()) TextPrimaryLight else Color(0xFFD1D5DB)
+                        )
+                    }
+
+                    // Export / Share Studio
+                    IconButton(
+                        onClick = { showExportDialog = true },
+                        modifier = Modifier.padding(end = 2.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Download,
+                            contentDescription = "Export & Share",
+                            tint = AccentBlue
                         )
                     }
 
@@ -659,6 +688,21 @@ fun PosterEditorScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 CanvasQuickActionButton(
+                                    label = "Duplicate",
+                                    icon = Icons.Default.ContentCopy,
+                                    onClick = {
+                                        pushHistory()
+                                        val cloned = selectedElement.copy(
+                                            id = "el_" + UUID.randomUUID().toString().take(6),
+                                            xRatio = (selectedElement.xRatio + 0.04f).coerceAtMost(0.85f),
+                                            yRatio = (selectedElement.yRatio + 0.04f).coerceAtMost(0.85f),
+                                            layerOrder = elements.size + 1
+                                        )
+                                        elements.add(cloned)
+                                        selectedElementId = cloned.id
+                                    }
+                                )
+                                CanvasQuickActionButton(
                                     label = "Center",
                                     icon = Icons.Default.CenterFocusStrong,
                                     onClick = {
@@ -832,6 +876,15 @@ fun PosterEditorScreen(
                                 elements.addAll(layoutElements)
                                 selectedElementId = layoutElements.firstOrNull()?.id
                                 Toast.makeText(context, "Smart Layout Applied!", Toast.LENGTH_SHORT).show()
+                            },
+                            onAddInspiration = { inspiration ->
+                                pushHistory()
+                                val startOrder = elements.size + 1
+                                val inspirationElements = TypographyHelper.createInspirationElements(inspiration, startLayer = startOrder)
+                                elements.addAll(inspirationElements)
+                                selectedElementId = inspirationElements.lastOrNull()?.id
+                                activeTab = EditorTab.STYLE
+                                Toast.makeText(context, "Added '${inspiration.title}'!", Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -974,7 +1027,8 @@ private fun ElementsTabContent(
     onAddShape: (ShapeType) -> Unit,
     onAddImagePlaceholder: () -> Unit,
     onAddSticker: (List<CanvasElement>) -> Unit,
-    onApplySmartLayout: (List<CanvasElement>) -> Unit
+    onApplySmartLayout: (List<CanvasElement>) -> Unit,
+    onAddInspiration: (MarketingCopyInspiration) -> Unit
 ) {
     var selectedStickerCategory by remember { mutableStateOf(StickerCategory.SALE_DISCOUNT) }
 
@@ -1086,6 +1140,46 @@ private fun ElementsTabContent(
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF0F172A)
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+        Text("💡 1-Tap Marketing Headlines & Quotes", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(TypographyHelper.marketingInspirations) { item ->
+                Surface(
+                    modifier = Modifier
+                        .width(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                        .clickable { onAddInspiration(item) },
+                    color = Color(0xFFF8FAFC)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = item.category,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AccentBlue
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = item.title,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryBlack,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = item.subtitle,
+                            fontSize = 10.sp,
+                            color = TextSecondaryLight,
+                            maxLines = 2
+                        )
+                    }
                 }
             }
         }
@@ -1785,39 +1879,39 @@ private fun BackgroundTabContent(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        Text("Gradient Themes", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
+        Text("✨ Curated Gradient Themes", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
         Spacer(modifier = Modifier.height(6.dp))
 
-        val gradients = listOf(
-            Pair("#FF6B6B", "#4ECDC4"),
-            Pair("#0F172A", "#1E3A8A"),
-            Pair("#064E3B", "#047857"),
-            Pair("#7C3AED", "#EC4899"),
-            Pair("#EA580C", "#F59E0B"),
-            Pair("#1E293B", "#334155")
-        )
-
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(gradients) { (c1, c2) ->
-                Box(
-                    modifier = Modifier
-                        .size(50.dp, 36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                listOf(Color(android.graphics.Color.parseColor(c1)), Color(android.graphics.Color.parseColor(c2)))
+            items(BackgroundPresets.gradients) { preset ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.clickable {
+                        onUpdateBg(
+                            PosterBackground(
+                                type = BackgroundType.GRADIENT_LINEAR,
+                                color1Hex = preset.color1,
+                                color2Hex = preset.color2
                             )
                         )
-                        .clickable {
-                            onUpdateBg(
-                                PosterBackground(
-                                    type = BackgroundType.GRADIENT_LINEAR,
-                                    color1Hex = c1,
-                                    color2Hex = c2
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp, 36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    listOf(
+                                        Color(android.graphics.Color.parseColor(preset.color1)),
+                                        Color(android.graphics.Color.parseColor(preset.color2))
+                                    )
                                 )
                             )
-                        }
-                )
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(preset.name, fontSize = 9.sp, color = TextSecondaryLight, maxLines = 1)
+                }
             }
         }
 

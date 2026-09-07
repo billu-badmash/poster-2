@@ -1,5 +1,6 @@
 package com.example.utils
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -7,7 +8,11 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.example.domain.models.BackgroundType
 import com.example.domain.models.CanvasElement
@@ -17,6 +22,13 @@ import com.example.domain.models.PosterBackground
 import com.example.domain.models.ShapeType
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
+
+enum class ExportFormat(val extension: String, val mimeType: String, val label: String) {
+    PNG("png", "image/png", "PNG (High Quality)"),
+    JPEG("jpg", "image/jpeg", "JPEG (Compressed)"),
+    PDF("pdf", "application/pdf", "PDF (Print Document)")
+}
 
 object CanvasUtils {
 
@@ -46,8 +58,8 @@ object CanvasUtils {
         context: Context? = null,
         quality: ExportQuality = ExportQuality.HIGH
     ): Bitmap {
-        val outputWidth = (width * quality.scaleFactor).toInt()
-        val outputHeight = (height * quality.scaleFactor).toInt()
+        val outputWidth = (width * quality.scaleFactor).toInt().coerceAtLeast(100)
+        val outputHeight = (height * quality.scaleFactor).toInt().coerceAtLeast(100)
         val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
@@ -67,6 +79,30 @@ object CanvasUtils {
                 )
                 bgPaint.shader = shader
                 canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), bgPaint)
+            }
+            BackgroundType.IMAGE -> {
+                var bgLoaded = false
+                if (context != null && !background.imageUrl.isNullOrBlank()) {
+                    try {
+                        val uri = Uri.parse(background.imageUrl)
+                        val inputStream = context.contentResolver.openInputStream(uri)
+                        if (inputStream != null) {
+                            val bmp = BitmapFactory.decodeStream(inputStream)
+                            inputStream.close()
+                            if (bmp != null) {
+                                canvas.drawBitmap(bmp, null, RectF(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat()), bgPaint)
+                                bmp.recycle()
+                                bgLoaded = true
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                if (!bgLoaded) {
+                    bgPaint.color = parseColor(background.color1Hex, android.graphics.Color.DKGRAY)
+                    canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), bgPaint)
+                }
             }
             else -> {
                 bgPaint.color = parseColor(background.color1Hex, android.graphics.Color.WHITE)
@@ -108,7 +144,7 @@ object CanvasUtils {
                             canvas.drawRect(rect, shapePaint)
                         }
                         ShapeType.LINE -> {
-                            shapePaint.strokeWidth = 4f
+                            shapePaint.strokeWidth = 4f * (outputWidth / 400f)
                             canvas.drawLine(elLeft, elTop + elHeight / 2f, elLeft + elWidth, elTop + elHeight / 2f, shapePaint)
                         }
                         ShapeType.BADGE -> {
@@ -148,6 +184,16 @@ object CanvasUtils {
                         }
                     }
 
+                    // Shadow effect
+                    if (el.hasShadow) {
+                        textPaint.setShadowLayer(
+                            8f * (outputWidth / 400f),
+                            2f * (outputWidth / 400f),
+                            4f * (outputWidth / 400f),
+                            parseColor(el.shadowColorHex, android.graphics.Color.DKGRAY)
+                        )
+                    }
+
                     val lines = textContent.split("\n")
                     val lineHeight = textPaint.textSize * 1.25f
                     val totalTextHeight = lines.size * lineHeight
@@ -160,6 +206,16 @@ object CanvasUtils {
                     }
 
                     for (line in lines) {
+                        // Optional stroke/outline
+                        if (el.hasStroke && el.strokeWidthDp > 0) {
+                            val strokePaint = Paint(textPaint).apply {
+                                style = Paint.Style.STROKE
+                                strokeWidth = el.strokeWidthDp * (outputWidth / 400f)
+                                color = parseColor(el.strokeColorHex, android.graphics.Color.WHITE)
+                                clearShadowLayer()
+                            }
+                            canvas.drawText(line, targetX, startY, strokePaint)
+                        }
                         canvas.drawText(line, targetX, startY, textPaint)
                         startY += lineHeight
                     }
@@ -169,7 +225,6 @@ object CanvasUtils {
                     val rect = RectF(elLeft, elTop, elLeft + elWidth, elTop + elHeight)
                     val corner = el.cornerRadiusDp * (outputWidth / 400f)
 
-                    // Try to load actual image from localUri or imageUrl
                     var imageLoaded = false
                     if (context != null) {
                         val uriStr = el.localUri ?: el.imageUrl
@@ -184,7 +239,6 @@ object CanvasUtils {
                                     BitmapFactory.decodeStream(inputStream, null, opts)
                                     inputStream.close()
 
-                                    // Calculate sample size for efficient loading
                                     val sampleSize = maxOf(1, maxOf(opts.outWidth / (elWidth.toInt() * 2), opts.outHeight / (elHeight.toInt() * 2)))
                                     val decodeOpts = BitmapFactory.Options().apply {
                                         inSampleSize = sampleSize
@@ -194,7 +248,6 @@ object CanvasUtils {
                                         val bmp = BitmapFactory.decodeStream(stream2, null, decodeOpts)
                                         stream2.close()
                                         if (bmp != null) {
-                                            // Clip to rounded rect
                                             val clippedBmp = Bitmap.createBitmap(elWidth.toInt().coerceAtLeast(1), elHeight.toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
                                             val clipCanvas = Canvas(clippedBmp)
                                             val clipPath = android.graphics.Path().apply {
@@ -209,13 +262,12 @@ object CanvasUtils {
                                     }
                                 }
                             } catch (e: Exception) {
-                                // Fall through to placeholder
+                                e.printStackTrace()
                             }
                         }
                     }
 
                     if (!imageLoaded) {
-                        // Placeholder card
                         val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             color = parseColor("#E2E8F0", android.graphics.Color.LTGRAY)
                             style = Paint.Style.FILL
@@ -239,15 +291,99 @@ object CanvasUtils {
     }
 
     /**
+     * Saves rendered poster bitmap directly to the Android MediaStore (Gallery).
+     */
+    fun exportBitmapToGallery(
+        context: Context,
+        bitmap: Bitmap,
+        format: ExportFormat = ExportFormat.PNG,
+        title: String = "Poster_${System.currentTimeMillis()}"
+    ): Uri? {
+        val cleanTitle = title.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+        val fileName = "$cleanTitle.${format.extension}"
+
+        return try {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, format.mimeType)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/PosterMaker")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+            }
+
+            val resolver = context.contentResolver
+            val imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+            if (imageUri != null) {
+                resolver.openOutputStream(imageUri)?.use { outputStream ->
+                    val compressFormat = if (format == ExportFormat.JPEG) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
+                    val compressQuality = if (format == ExportFormat.JPEG) 92 else 100
+                    bitmap.compress(compressFormat, compressQuality, outputStream)
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(imageUri, contentValues, null, null)
+                }
+            }
+            imageUri
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Generates a printable PDF file from the poster bitmap.
+     */
+    fun exportPosterToPdf(
+        context: Context,
+        bitmap: Bitmap,
+        title: String = "Poster_${System.currentTimeMillis()}"
+    ): File? {
+        return try {
+            val cleanTitle = title.replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+            val cacheDir = File(context.cacheDir, "exported_pdf")
+            if (!cacheDir.exists()) cacheDir.mkdirs()
+            val pdfFile = File(cacheDir, "$cleanTitle.pdf")
+
+            val pdfDocument = PdfDocument()
+            val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+            val page = pdfDocument.startPage(pageInfo)
+
+            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+            pdfDocument.finishPage(page)
+
+            val fos = FileOutputStream(pdfFile)
+            pdfDocument.writeTo(fos)
+            fos.close()
+            pdfDocument.close()
+
+            pdfFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
      * Saves bitmap to app cache and returns the shareable content URI using FileProvider.
      */
-    fun saveBitmapToCache(context: Context, bitmap: Bitmap, fileName: String = "poster_${System.currentTimeMillis()}.png"): Uri? {
+    fun saveBitmapToCache(
+        context: Context,
+        bitmap: Bitmap,
+        format: ExportFormat = ExportFormat.PNG,
+        fileName: String = "poster_${System.currentTimeMillis()}.${format.extension}"
+    ): Uri? {
         return try {
             val cacheDir = File(context.cacheDir, "shared_images")
             if (!cacheDir.exists()) cacheDir.mkdirs()
             val file = File(cacheDir, fileName)
             val stream = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            val compressFormat = if (format == ExportFormat.JPEG) Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
+            bitmap.compress(compressFormat, 100, stream)
             stream.flush()
             stream.close()
             FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -257,12 +393,20 @@ object CanvasUtils {
         }
     }
 
+    fun saveBitmapToCache(
+        context: Context,
+        bitmap: Bitmap,
+        fileName: String
+    ): Uri? {
+        return saveBitmapToCache(context, bitmap, ExportFormat.PNG, fileName)
+    }
+
     /**
      * Triggers native Android share sheet with image URI.
      */
-    fun shareImageUri(context: Context, uri: Uri, title: String = "Share Poster") {
+    fun shareImageUri(context: Context, uri: Uri, title: String = "Share Poster", mimeType: String = "image/png") {
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/png"
+            type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
