@@ -46,6 +46,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -76,17 +77,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.data.repository.PosterRepository
 import com.example.domain.models.EditableField
+import com.example.domain.models.ExportQuality
 import com.example.domain.models.FieldType
 import com.example.domain.models.Project
 import com.example.domain.models.Template
 import com.example.ui.components.PosterCanvasView
-import com.example.ui.theme.AccentBlack
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.CardBorderLight
-import com.example.ui.theme.PrimaryBlack
-import com.example.ui.theme.SurfaceLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
+import com.example.ui.theme.*
 import com.example.ui.theme.TextTertiaryLight
 import com.example.utils.CanvasUtils
 import kotlinx.coroutines.launch
@@ -296,9 +292,14 @@ fun DynamicGeneratorScreen(
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFFF9FAFB),
-                                unfocusedContainerColor = Color(0xFFF9FAFB)
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimaryLight,
+                                unfocusedTextColor = TextPrimaryLight,
+                                focusedContainerColor = SurfaceLight,
+                                unfocusedContainerColor = SurfaceLight,
+                                focusedBorderColor = PrimaryBlack,
+                                unfocusedBorderColor = BorderLight,
+                                cursorColor = PrimaryBlack
                             )
                         )
                     }
@@ -403,12 +404,12 @@ fun DynamicGeneratorScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Resolution pill options
-                    var selectedQuality by remember { mutableStateOf("High (1080p)") }
+                    var selectedQuality by remember { mutableStateOf(ExportQuality.HIGH) }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf("Standard", "High (1080p)", "Max 4K").forEach { quality ->
+                        ExportQuality.entries.forEach { quality ->
                             val isSel = selectedQuality == quality
                             Box(
                                 modifier = Modifier
@@ -419,12 +420,19 @@ fun DynamicGeneratorScreen(
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = quality,
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSel) Color.White else TextPrimaryLight
-                                )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = quality.label,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSel) Color.White else TextPrimaryLight
+                                    )
+                                    Text(
+                                        text = quality.description,
+                                        fontSize = 8.sp,
+                                        color = if (isSel) Color.White.copy(alpha = 0.7f) else TextSecondaryLight
+                                    )
+                                }
                             }
                         }
                     }
@@ -439,7 +447,9 @@ fun DynamicGeneratorScreen(
                                 height = tmpl.canvasHeight,
                                 background = tmpl.background,
                                 elements = tmpl.elements,
-                                fieldValues = formValues
+                                fieldValues = formValues,
+                                context = context,
+                                quality = selectedQuality
                             )
                             val uri = CanvasUtils.saveBitmapToCache(context, bitmap, "poster_${System.currentTimeMillis()}.png")
                             if (uri != null) {
@@ -471,7 +481,9 @@ fun DynamicGeneratorScreen(
                                 height = tmpl.canvasHeight,
                                 background = tmpl.background,
                                 elements = tmpl.elements,
-                                fieldValues = formValues
+                                fieldValues = formValues,
+                                context = context,
+                                quality = selectedQuality
                             )
                             val uri = CanvasUtils.saveBitmapToCache(context, bitmap, "poster_saved_${System.currentTimeMillis()}.png")
                             Toast.makeText(context, "Saved to device storage & gallery!", Toast.LENGTH_LONG).show()
@@ -587,14 +599,19 @@ fun DynamicFormField(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("form_input_${field.fieldId}"),
-                        placeholder = { Text(field.placeholder.ifEmpty { "Enter ${field.label.lowercase()}" }, fontSize = 13.sp) },
+                        placeholder = { Text(field.placeholder.ifEmpty { "Enter ${field.label.lowercase()}" }, fontSize = 13.sp, color = TextTertiaryLight) },
                         singleLine = !field.label.contains("Description", ignoreCase = true) && !field.label.contains("Highlight", ignoreCase = true),
                         maxLines = 4,
                         keyboardOptions = KeyboardOptions(keyboardType = kbType),
                         shape = RoundedCornerShape(12.dp),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF9FAFB),
-                            unfocusedContainerColor = Color(0xFFF9FAFB)
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimaryLight,
+                            unfocusedTextColor = TextPrimaryLight,
+                            focusedContainerColor = SurfaceLight,
+                            unfocusedContainerColor = SurfaceLight,
+                            focusedBorderColor = PrimaryBlack,
+                            unfocusedBorderColor = BorderLight,
+                            cursorColor = PrimaryBlack
                         )
                     )
                 }

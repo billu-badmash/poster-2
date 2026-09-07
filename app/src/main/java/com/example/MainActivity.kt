@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -25,7 +26,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.data.local.AppDatabase
 import com.example.data.repository.PosterRepository
+import com.example.domain.models.UserRole
 import com.example.ui.admin.AdminDashboardScreen
+import com.example.ui.auth.LoginScreen
 import com.example.ui.components.CleanBottomBar
 import com.example.ui.creator.CreatorDashboardScreen
 import com.example.ui.editor.PosterEditorScreen
@@ -36,6 +39,7 @@ import com.example.ui.notifications.NotificationsScreen
 import com.example.ui.profile.ProfileScreen
 import com.example.ui.projects.ProjectsScreen
 import com.example.ui.templates.TemplateDetailScreen
+import com.example.ui.templates.TemplateHistoryScreen
 import com.example.ui.templates.TemplatesScreen
 import com.example.ui.theme.BackgroundLight
 import com.example.ui.theme.MyApplicationTheme
@@ -48,7 +52,8 @@ class MainActivity : ComponentActivity() {
         val repository = PosterRepository(applicationContext)
 
         setContent {
-            MyApplicationTheme {
+            val isDarkMode by repository.isDarkMode.collectAsState()
+            MyApplicationTheme(darkTheme = isDarkMode) {
                 PosterMakerApp(repository = repository)
             }
         }
@@ -60,13 +65,14 @@ fun PosterMakerApp(repository: PosterRepository) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val isDarkMode by repository.isDarkMode.collectAsState()
 
     val topLevelRoutes = listOf("home", "templates", "projects", "favorites", "profile")
     val showBottomBar = currentRoute in topLevelRoutes
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = BackgroundLight
+        containerColor = if (isDarkMode) com.example.ui.theme.DarkBackground else BackgroundLight
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -75,9 +81,26 @@ fun PosterMakerApp(repository: PosterRepository) {
         ) {
             NavHost(
                 navController = navController,
-                startDestination = "home",
+                startDestination = "login",
                 modifier = Modifier.fillMaxSize()
             ) {
+                // 0. Login & Role Authentication Screen
+                composable("login") {
+                    LoginScreen(
+                        repository = repository,
+                        onLoginSuccess = { role ->
+                            navController.navigate("home") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                            when (role) {
+                                UserRole.ADMIN -> navController.navigate("admin")
+                                UserRole.CREATOR -> navController.navigate("creator")
+                                UserRole.USER -> { /* Already at home */ }
+                            }
+                        }
+                    )
+                }
+
                 // 1. Home
                 composable("home") {
                     HomeScreen(
@@ -158,7 +181,12 @@ fun PosterMakerApp(repository: PosterRepository) {
                     ProfileScreen(
                         repository = repository,
                         onNavigateToAdmin = { navController.navigate("admin") },
-                        onNavigateToCreator = { navController.navigate("creator") }
+                        onNavigateToCreator = { navController.navigate("creator") },
+                        onLogout = {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
                     )
                 }
 
@@ -177,7 +205,24 @@ fun PosterMakerApp(repository: PosterRepository) {
                         },
                         onOpenEditor = { tmplId ->
                             navController.navigate("editor?templateId=$tmplId")
+                        },
+                        onViewHistory = { tmplId ->
+                            navController.navigate("template_history/$tmplId")
                         }
+                    )
+                }
+
+                // 6b. Template Version History
+                composable(
+                    route = "template_history/{templateId}",
+                    arguments = listOf(navArgument("templateId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val templateId = backStackEntry.arguments?.getString("templateId") ?: ""
+                    TemplateHistoryScreen(
+                        templateId = templateId,
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onRestored = { navController.popBackStack() }
                     )
                 }
 

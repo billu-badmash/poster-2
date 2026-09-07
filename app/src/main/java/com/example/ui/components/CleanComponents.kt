@@ -1,11 +1,16 @@
 package com.example.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,7 +57,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,7 +72,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -81,17 +87,7 @@ import com.example.domain.models.Category
 import com.example.domain.models.Template
 import com.example.domain.models.UserProfile
 import com.example.domain.models.UserRole
-import com.example.ui.theme.AccentBlack
-import com.example.ui.theme.AccentOrange
-import com.example.ui.theme.AccentOrangeBg
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.BorderLight
-import com.example.ui.theme.CardBorderLight
-import com.example.ui.theme.PrimaryBlack
-import com.example.ui.theme.SurfaceLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
-import com.example.ui.theme.TextTertiaryLight
+import com.example.ui.theme.*
 
 @Composable
 fun CleanHeader(
@@ -103,137 +99,172 @@ fun CleanHeader(
 ) {
     var showRoleMenu by remember { mutableStateOf(false) }
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "GOOD MORNING",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextTertiaryLight,
-                letterSpacing = 1.5.sp
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { showRoleMenu = true }
-            ) {
-                Text(
-                    text = user.name,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimaryLight
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFFEEF1FF), BackgroundLight)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                // Role Badge
-                val roleBg = when (user.role) {
-                    UserRole.ADMIN -> Color(0xFFFEF2F2)
-                    UserRole.CREATOR -> Color(0xFFEFF6FF)
-                    UserRole.USER -> Color(0xFFF3F4F6)
-                }
-                val roleColor = when (user.role) {
-                    UserRole.ADMIN -> Color(0xFFDC2626)
-                    UserRole.CREATOR -> Color(0xFF2563EB)
-                    UserRole.USER -> Color(0xFF4B5563)
-                }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(roleBg)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "GOOD MORNING",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AccentBlue,
+                    letterSpacing = 2.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { showRoleMenu = true }
                 ) {
                     Text(
-                        text = user.role.name,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = roleColor
+                        text = user.name,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimaryLight
                     )
-                }
-            }
-
-            DropdownMenu(
-                expanded = showRoleMenu,
-                onDismissRequest = { showRoleMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("User View (Browse & Generate)") },
-                    onClick = {
-                        onRoleSwitch(UserRole.USER)
-                        showRoleMenu = false
-                    },
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
-                )
-                DropdownMenuItem(
-                    text = { Text("Creator View (Design & Publish)") },
-                    onClick = {
-                        onRoleSwitch(UserRole.CREATOR)
-                        showRoleMenu = false
-                    },
-                    leadingIcon = { Icon(Icons.Default.Brush, contentDescription = null) }
-                )
-                DropdownMenuItem(
-                    text = { Text("Admin View (Moderate & Manage)") },
-                    onClick = {
-                        onRoleSwitch(UserRole.ADMIN)
-                        showRoleMenu = false
-                    },
-                    leadingIcon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null) }
-                )
-            }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Notifications Icon
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceLight)
-                    .border(1.dp, CardBorderLight, CircleShape)
-                    .clickable { onNotificationsClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notifications",
-                    tint = TextPrimaryLight,
-                    modifier = Modifier.size(20.dp)
-                )
-                if (unreadNotificationCount > 0) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    val roleBg = when (user.role) {
+                        UserRole.ADMIN -> AccentRedBg
+                        UserRole.CREATOR -> AccentBlueBg
+                        UserRole.USER -> SurfaceVariantLight
+                    }
+                    val roleColor = when (user.role) {
+                        UserRole.ADMIN -> AccentRed
+                        UserRole.CREATOR -> AccentBlue
+                        UserRole.USER -> TextSecondaryLight
+                    }
+                    val roleIcon = when (user.role) {
+                        UserRole.ADMIN -> "Shield"
+                        UserRole.CREATOR -> "Art"
+                        UserRole.USER -> "User"
+                    }
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .background(Color(0xFFEF4444), CircleShape)
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-6).dp, y = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(roleBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = user.role.name,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = roleColor
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showRoleMenu,
+                    onDismissRequest = { showRoleMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("User View (Browse & Generate)") },
+                        onClick = { onRoleSwitch(UserRole.USER); showRoleMenu = false },
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Creator View (Design & Publish)") },
+                        onClick = { onRoleSwitch(UserRole.CREATOR); showRoleMenu = false },
+                        leadingIcon = { Icon(Icons.Default.Brush, contentDescription = null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Admin View (Moderate & Manage)") },
+                        onClick = { onRoleSwitch(UserRole.ADMIN); showRoleMenu = false },
+                        leadingIcon = { Icon(Icons.Default.AdminPanelSettings, contentDescription = null) }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Notification Button with badge
+                Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceLight)
+                            .shadow(4.dp, CircleShape)
+                            .clickable { onNotificationsClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = TextPrimaryLight,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    if (unreadNotificationCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(14.dp)
+                                .background(AccentRed, CircleShape)
+                                .border(2.dp, SurfaceLight, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (unreadNotificationCount > 9) "9+" else unreadNotificationCount.toString(),
+                                fontSize = 7.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
 
-            // User Avatar Button
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceLight)
-                    .border(1.dp, CardBorderLight, CircleShape)
-                    .clickable { onProfileClick() }
-                    .testTag("profile_avatar_button"),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = user.name.take(1).uppercase(),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = PrimaryBlack
+                Spacer(modifier = Modifier.width(10.dp))
+
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val avatarScale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.92f else 1f,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                    label = "avatar_scale"
                 )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .scale(avatarScale)
+                        .background(
+                            Brush.linearGradient(colors = listOf(GradStart, GradEnd)),
+                            CircleShape
+                        )
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(SurfaceLight)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null
+                            ) { onProfileClick() }
+                            .testTag("profile_avatar_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = user.name.take(1).uppercase(),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = AccentBlue
+                        )
+                    }
+                }
             }
         }
     }
@@ -257,22 +288,18 @@ fun CleanSearchBar(
             onValueChange = onQueryChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .shadow(2.dp, RoundedCornerShape(16.dp))
+                .height(54.dp)
+                .shadow(6.dp, RoundedCornerShape(18.dp))
                 .testTag("search_input_field"),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             placeholder = {
-                Text(
-                    text = placeholder,
-                    fontSize = 14.sp,
-                    color = TextTertiaryLight
-                )
+                Text(text = placeholder, fontSize = 14.sp, color = TextTertiaryLight)
             },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = TextTertiaryLight,
+                    tint = AccentBlue,
                     modifier = Modifier.size(20.dp)
                 )
             },
@@ -290,11 +317,14 @@ fun CleanSearchBar(
             },
             singleLine = true,
             colors = TextFieldDefaults.colors(
+                focusedTextColor = TextPrimaryLight,
+                unfocusedTextColor = TextPrimaryLight,
                 focusedContainerColor = SurfaceLight,
                 unfocusedContainerColor = SurfaceLight,
                 disabledContainerColor = SurfaceLight,
                 focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = AccentBlue
             )
         )
     }
@@ -314,15 +344,28 @@ fun CategoryFilterRow(
     ) {
         items(categories) { category ->
             val isSelected = category.id == selectedCategoryId
-            val bg = if (isSelected) AccentBlack else SurfaceLight
-            val textColor = if (isSelected) Color.White else TextSecondaryLight
-            val borderModifier = if (isSelected) Modifier else Modifier.border(1.dp, CardBorderLight, RoundedCornerShape(24.dp))
+
+            val bgColor by animateColorAsState(
+                targetValue = if (isSelected) AccentBlue else SurfaceLight,
+                animationSpec = tween(durationMillis = 200),
+                label = "chip_bg_${category.id}"
+            )
+            val textColor by animateColorAsState(
+                targetValue = if (isSelected) Color.White else TextSecondaryLight,
+                animationSpec = tween(durationMillis = 200),
+                label = "chip_text_${category.id}"
+            )
+            val elevation by animateDpAsState(
+                targetValue = if (isSelected) 6.dp else 2.dp,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                label = "chip_elev_${category.id}"
+            )
 
             Box(
                 modifier = Modifier
+                    .shadow(elevation, RoundedCornerShape(24.dp))
                     .clip(RoundedCornerShape(24.dp))
-                    .then(borderModifier)
-                    .background(bg)
+                    .background(bgColor)
                     .clickable { onSelectCategory(category.id) }
                     .padding(horizontal = 18.dp, vertical = 10.dp)
                     .testTag("category_pill_${category.id}"),
@@ -347,26 +390,44 @@ fun TemplateCard(
     onFavoriteToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "card_scale"
+    )
+    val cardElevation by animateDpAsState(
+        targetValue = if (isPressed) 1.dp else 6.dp,
+        animationSpec = tween(150),
+        label = "card_elev"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .border(1.dp, CardBorderLight, RoundedCornerShape(24.dp))
-            .clickable { onCardClick() }
+            .scale(cardScale)
+            .shadow(cardElevation, RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onCardClick() }
             .testTag("template_card_${template.templateId}"),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceLight),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            // Preview container
+        Column(modifier = Modifier.padding(8.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(14.dp))
             ) {
-                // Canvas preview
                 PosterCanvasView(
                     modifier = Modifier.fillMaxSize(),
                     canvasWidth = template.canvasWidth,
@@ -376,33 +437,48 @@ fun TemplateCard(
                     isInteractive = false
                 )
 
+                // Bottom gradient scrim
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.28f))
+                            )
+                        )
+                )
+
                 // PRO Badge
                 if (template.isPro) {
                     Box(
                         modifier = Modifier
                             .padding(8.dp)
                             .align(Alignment.TopEnd)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.9f))
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                Brush.linearGradient(colors = listOf(GradWarmStart, GradWarmEnd))
+                            )
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text(
-                            text = "PRO",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryBlack
-                        )
+                        Text(text = "PRO", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                     }
                 }
 
-                // Favorite Heart Button
+                // Animated Favorite button
+                val favScale by animateFloatAsState(
+                    targetValue = if (isFavorite) 1.2f else 1f,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
+                    label = "fav_scale"
+                )
                 Box(
                     modifier = Modifier
                         .padding(8.dp)
                         .size(34.dp)
                         .align(Alignment.TopStart)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.9f))
+                        .background(Color.White.copy(alpha = 0.92f))
                         .clickable { onFavoriteToggle() }
                         .testTag("favorite_btn_${template.templateId}"),
                     contentAlignment = Alignment.Center
@@ -410,28 +486,25 @@ fun TemplateCard(
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "Favorite",
-                        tint = if (isFavorite) Color(0xFFEF4444) else Color(0xFF6B7280),
-                        modifier = Modifier.size(18.dp)
+                        tint = if (isFavorite) AccentRed else Color(0xFF9CA3AF),
+                        modifier = Modifier.size(18.dp).scale(favScale)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-
-            // Info details
             Text(
                 text = template.name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimaryLight,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 4.dp)
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -443,30 +516,19 @@ fun TemplateCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-
-                Box(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFF3F4F6))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFFFF8E1))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFF59E0B),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = String.format("%.1f", template.rating),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimaryLight
-                        )
-                    }
+                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = AccentAmber, modifier = Modifier.size(12.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(text = String.format("%.1f", template.rating), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
                 }
             }
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
@@ -479,53 +541,24 @@ fun CleanBottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(8.dp),
+            .shadow(16.dp, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
         color = SurfaceLight,
-        tonalElevation = 4.dp
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        tonalElevation = 8.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp)
-                .padding(horizontal = 16.dp),
+                .height(72.dp)
+                .padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomNavItem(
-                icon = Icons.Filled.Home,
-                label = "Home",
-                isSelected = currentRoute == "home",
-                onClick = { onNavigate("home") },
-                tag = "nav_home"
-            )
-            BottomNavItem(
-                icon = Icons.Filled.GridView,
-                label = "Templates",
-                isSelected = currentRoute == "templates",
-                onClick = { onNavigate("templates") },
-                tag = "nav_templates"
-            )
-            BottomNavItem(
-                icon = Icons.Filled.Folder,
-                label = "Projects",
-                isSelected = currentRoute == "projects",
-                onClick = { onNavigate("projects") },
-                tag = "nav_projects"
-            )
-            BottomNavItem(
-                icon = Icons.Filled.Favorite,
-                label = "Favorites",
-                isSelected = currentRoute == "favorites",
-                onClick = { onNavigate("favorites") },
-                tag = "nav_favorites"
-            )
-            BottomNavItem(
-                icon = Icons.Filled.Person,
-                label = "Profile",
-                isSelected = currentRoute == "profile",
-                onClick = { onNavigate("profile") },
-                tag = "nav_profile"
-            )
+            BottomNavItem(icon = Icons.Filled.Home, label = "Home", isSelected = currentRoute == "home", onClick = { onNavigate("home") }, tag = "nav_home")
+            BottomNavItem(icon = Icons.Filled.GridView, label = "Templates", isSelected = currentRoute == "templates", onClick = { onNavigate("templates") }, tag = "nav_templates")
+            BottomNavItem(icon = Icons.Filled.Folder, label = "Projects", isSelected = currentRoute == "projects", onClick = { onNavigate("projects") }, tag = "nav_projects")
+            BottomNavItem(icon = Icons.Filled.Favorite, label = "Favorites", isSelected = currentRoute == "favorites", onClick = { onNavigate("favorites") }, tag = "nav_favorites")
+            BottomNavItem(icon = Icons.Filled.Person, label = "Profile", isSelected = currentRoute == "profile", onClick = { onNavigate("profile") }, tag = "nav_profile")
         }
     }
 }
@@ -538,26 +571,52 @@ private fun BottomNavItem(
     onClick: () -> Unit,
     tag: String
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val iconScale by animateFloatAsState(
+        targetValue = when {
+            isPressed -> 0.85f
+            isSelected -> 1.1f
+            else -> 1f
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "nav_icon_scale"
+    )
+    val pillWidth by animateDpAsState(
+        targetValue = if (isSelected) 48.dp else 0.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nav_pill_width"
+    )
+
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .padding(horizontal = 10.dp, vertical = 8.dp)
             .testTag(tag),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Box(
+            modifier = Modifier
+                .height(3.dp)
+                .width(pillWidth)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Brush.horizontalGradient(colors = listOf(GradStart, GradEnd)))
+        )
+        Spacer(modifier = Modifier.height(4.dp))
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isSelected) AccentBlack else Color(0xFF9CA3AF),
-            modifier = Modifier.size(22.dp)
+            tint = if (isSelected) AccentBlue else TextTertiaryLight,
+            modifier = Modifier.size(22.dp).scale(iconScale)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
             fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            color = if (isSelected) AccentBlack else Color(0xFF9CA3AF)
+            color = if (isSelected) AccentBlue else TextTertiaryLight
         )
     }
 }
@@ -571,48 +630,31 @@ fun EmptyStateView(
     onButtonClick: (() -> Unit)? = null
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(32.dp),
+        modifier = Modifier.fillMaxWidth().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFF3F4F6)),
+                .size(80.dp)
+                .background(Brush.linearGradient(colors = listOf(AccentBlueBg, AccentPurpleBg)), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color(0xFF9CA3AF),
-                modifier = Modifier.size(36.dp)
-            )
+            Icon(imageVector = icon, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(38.dp))
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimaryLight
-        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(text = title, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimaryLight)
         Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = message,
-            fontSize = 13.sp,
-            color = TextSecondaryLight,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
+        Text(text = message, fontSize = 13.sp, color = TextSecondaryLight, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         if (buttonText != null && onButtonClick != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             Button(
                 onClick = onButtonClick,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlack)
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                modifier = Modifier.shadow(6.dp, RoundedCornerShape(14.dp))
             ) {
-                Text(buttonText, fontWeight = FontWeight.SemiBold)
+                Text(buttonText, fontWeight = FontWeight.Bold)
             }
         }
     }

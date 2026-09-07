@@ -89,12 +89,24 @@ fun CreatorDashboardScreen(
     val currentUser by repository.currentUser.collectAsState()
     val myTemplates by repository.getTemplatesByCreator(currentUser.id).collectAsState(initial = emptyList())
 
+    var selectedTab by remember { mutableStateOf(0) }
     var showNewTemplateDialog by remember { mutableStateOf(false) }
 
-    val publishedCount = myTemplates.count { it.status == TemplateStatus.APPROVED }
+    val publishedCount = myTemplates.count { it.status == TemplateStatus.APPROVED || it.status == TemplateStatus.PUBLISHED }
     val pendingCount = myTemplates.count { it.status == TemplateStatus.PENDING }
     val draftCount = myTemplates.count { it.status == TemplateStatus.DRAFT }
+    val rejectedCount = myTemplates.count { it.status == TemplateStatus.REJECTED }
     val totalUses = myTemplates.sumOf { it.usageCount }
+
+    val filteredTemplates = remember(myTemplates, selectedTab) {
+        when (selectedTab) {
+            1 -> myTemplates.filter { it.status == TemplateStatus.APPROVED || it.status == TemplateStatus.PUBLISHED }
+            2 -> myTemplates.filter { it.status == TemplateStatus.PENDING }
+            3 -> myTemplates.filter { it.status == TemplateStatus.DRAFT }
+            4 -> myTemplates.filter { it.status == TemplateStatus.REJECTED }
+            else -> myTemplates
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -167,17 +179,32 @@ fun CreatorDashboardScreen(
                 }
             }
 
-            // My Templates Section Header
+            // Tabs for My Templates
             item {
-                Text(
-                    text = "My Templates (${myTemplates.size})",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimaryLight
-                )
+                val tabTitles = listOf("All (${myTemplates.size})", "Published ($publishedCount)", "Review ($pendingCount)", "Drafts ($draftCount)", "Rejected ($rejectedCount)")
+                androidx.compose.material3.ScrollableTabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = BackgroundLight,
+                    contentColor = PrimaryBlack,
+                    edgePadding = 0.dp
+                ) {
+                    tabTitles.forEachIndexed { index, title ->
+                        androidx.compose.material3.Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = {
+                                Text(
+                                    text = title,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        )
+                    }
+                }
             }
 
-            if (myTemplates.isEmpty()) {
+            if (filteredTemplates.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -185,11 +212,11 @@ fun CreatorDashboardScreen(
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No templates created yet. Start designing your first template!", color = TextSecondaryLight, fontSize = 13.sp)
+                        Text("No templates in this category.", color = TextSecondaryLight, fontSize = 13.sp)
                     }
                 }
             } else {
-                items(myTemplates, key = { it.templateId }) { template ->
+                items(filteredTemplates, key = { it.templateId }) { template ->
                     CreatorTemplateItemCard(
                         template = template,
                         onEdit = { onOpenEditorForTemplate(template.templateId) },
@@ -242,7 +269,7 @@ fun CreatorDashboardScreen(
                                             templateId = newId,
                                             creatorId = currentUser.id,
                                             creatorName = currentUser.name,
-                                            name = "New ${preset.name.lowercase().capitalize()} Template",
+                                            name = "New ${preset.name.lowercase().replaceFirstChar { it.uppercase() }} Template",
                                             description = "Custom poster template created in Creator Studio",
                                             categoryId = "cat_business",
                                             categoryName = "Business",
@@ -347,10 +374,11 @@ private fun CreatorTemplateItemCard(
 
                     // Status Badge
                     val (statusColor, statusBg, icon) = when (template.status) {
-                        TemplateStatus.APPROVED -> Triple(Color(0xFF059669), Color(0xFFECFDF5), Icons.Default.CheckCircle)
+                        TemplateStatus.APPROVED, TemplateStatus.PUBLISHED -> Triple(Color(0xFF059669), Color(0xFFECFDF5), Icons.Default.CheckCircle)
                         TemplateStatus.PENDING -> Triple(Color(0xFFD97706), Color(0xFFFEF3C7), Icons.Default.HourglassEmpty)
                         TemplateStatus.DRAFT -> Triple(Color(0xFF4B5563), Color(0xFFF3F4F6), Icons.Default.Edit)
                         TemplateStatus.REJECTED -> Triple(Color(0xFFDC2626), Color(0xFFFEF2F2), Icons.Default.Warning)
+                        TemplateStatus.ARCHIVED -> Triple(Color(0xFF6B7280), Color(0xFFF3F4F6), Icons.Default.Edit)
                     }
 
                     Box(

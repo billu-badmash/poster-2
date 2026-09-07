@@ -3,6 +3,7 @@ package com.example.utils
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
@@ -11,6 +12,7 @@ import androidx.core.content.FileProvider
 import com.example.domain.models.BackgroundType
 import com.example.domain.models.CanvasElement
 import com.example.domain.models.ElementType
+import com.example.domain.models.ExportQuality
 import com.example.domain.models.PosterBackground
 import com.example.domain.models.ShapeType
 import java.io.File
@@ -32,15 +34,21 @@ object CanvasUtils {
 
     /**
      * Renders a complete high-resolution bitmap of the poster given its background and elements.
+     * @param context Optional context for loading images from URIs.
+     * @param quality Export quality setting that determines the output resolution.
      */
     fun renderPosterBitmap(
         width: Int = 1080,
         height: Int = 1080,
         background: PosterBackground,
         elements: List<CanvasElement>,
-        fieldValues: Map<String, String> = emptyMap()
+        fieldValues: Map<String, String> = emptyMap(),
+        context: Context? = null,
+        quality: ExportQuality = ExportQuality.HIGH
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val outputWidth = (width * quality.scaleFactor).toInt()
+        val outputHeight = (height * quality.scaleFactor).toInt()
+        val bitmap = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
         // 1. Draw Background
@@ -48,31 +56,31 @@ object CanvasUtils {
         when (background.type) {
             BackgroundType.SOLID -> {
                 bgPaint.color = parseColor(background.color1Hex, android.graphics.Color.WHITE)
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
+                canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), bgPaint)
             }
             BackgroundType.GRADIENT_LINEAR -> {
                 val c1 = parseColor(background.color1Hex, android.graphics.Color.WHITE)
                 val c2 = parseColor(background.color2Hex ?: background.color1Hex, android.graphics.Color.LTGRAY)
                 val shader = android.graphics.LinearGradient(
-                    0f, 0f, 0f, height.toFloat(),
+                    0f, 0f, 0f, outputHeight.toFloat(),
                     c1, c2, android.graphics.Shader.TileMode.CLAMP
                 )
                 bgPaint.shader = shader
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
+                canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), bgPaint)
             }
             else -> {
                 bgPaint.color = parseColor(background.color1Hex, android.graphics.Color.WHITE)
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
+                canvas.drawRect(0f, 0f, outputWidth.toFloat(), outputHeight.toFloat(), bgPaint)
             }
         }
 
         // 2. Draw Elements ordered by layer
         val sortedElements = elements.filter { it.isVisible }.sortedBy { it.layerOrder }
         for (el in sortedElements) {
-            val elLeft = el.xRatio * width
-            val elTop = el.yRatio * height
-            val elWidth = el.widthRatio * width
-            val elHeight = el.heightRatio * height
+            val elLeft = el.xRatio * outputWidth
+            val elTop = el.yRatio * outputHeight
+            val elWidth = el.widthRatio * outputWidth
+            val elHeight = el.heightRatio * outputHeight
 
             canvas.save()
             if (el.rotation != 0f) {
@@ -93,7 +101,7 @@ object CanvasUtils {
                             canvas.drawCircle(elLeft + elWidth / 2f, elTop + elHeight / 2f, radius, shapePaint)
                         }
                         ShapeType.ROUNDED_RECT -> {
-                            val corner = (el.shapeCornerRadiusDp * (width / 400f))
+                            val corner = (el.shapeCornerRadiusDp * (outputWidth / 400f))
                             canvas.drawRoundRect(rect, corner, corner, shapePaint)
                         }
                         ShapeType.RECTANGLE -> {
@@ -104,7 +112,7 @@ object CanvasUtils {
                             canvas.drawLine(elLeft, elTop + elHeight / 2f, elLeft + elWidth, elTop + elHeight / 2f, shapePaint)
                         }
                         ShapeType.BADGE -> {
-                            val corner = (el.shapeCornerRadiusDp * (width / 400f))
+                            val corner = (el.shapeCornerRadiusDp * (outputWidth / 400f))
                             canvas.drawRoundRect(rect, corner, corner, shapePaint)
                         }
                     }
@@ -114,9 +122,9 @@ object CanvasUtils {
                         val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             color = parseColor(el.strokeColorHex, android.graphics.Color.WHITE)
                             style = Paint.Style.STROKE
-                            strokeWidth = el.strokeWidthDp * (width / 400f)
+                            strokeWidth = el.strokeWidthDp * (outputWidth / 400f)
                         }
-                        canvas.drawRoundRect(rect, el.shapeCornerRadiusDp * (width / 400f), el.shapeCornerRadiusDp * (width / 400f), strokePaint)
+                        canvas.drawRoundRect(rect, el.shapeCornerRadiusDp * (outputWidth / 400f), el.shapeCornerRadiusDp * (outputWidth / 400f), strokePaint)
                     }
                 }
 
@@ -130,7 +138,7 @@ object CanvasUtils {
                     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         color = parseColor(el.fontColorHex, android.graphics.Color.BLACK)
                         alpha = (el.opacity * 255).toInt().coerceIn(0, 255)
-                        textSize = el.fontSizeSp * (width / 360f)
+                        textSize = el.fontSizeSp * (outputWidth / 360f)
                         isFakeBoldText = el.isBold
                         if (el.isItalic) textSkewX = -0.25f
                         textAlign = when (el.textAlign.uppercase()) {
@@ -158,21 +166,69 @@ object CanvasUtils {
                 }
 
                 ElementType.IMAGE -> {
-                    // Image placeholder card or photo
                     val rect = RectF(elLeft, elTop, elLeft + elWidth, elTop + elHeight)
-                    val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = parseColor("#E2E8F0", android.graphics.Color.LTGRAY)
-                        style = Paint.Style.FILL
-                    }
-                    val corner = el.cornerRadiusDp * (width / 400f)
-                    canvas.drawRoundRect(rect, corner, corner, cardPaint)
+                    val corner = el.cornerRadiusDp * (outputWidth / 400f)
 
-                    val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = parseColor("#64748B", android.graphics.Color.DKGRAY)
-                        textSize = 28f * (width / 1080f)
-                        textAlign = Paint.Align.CENTER
+                    // Try to load actual image from localUri or imageUrl
+                    var imageLoaded = false
+                    if (context != null) {
+                        val uriStr = el.localUri ?: el.imageUrl
+                        if (!uriStr.isNullOrBlank()) {
+                            try {
+                                val uri = Uri.parse(uriStr)
+                                val inputStream = context.contentResolver.openInputStream(uri)
+                                if (inputStream != null) {
+                                    val opts = BitmapFactory.Options().apply {
+                                        inJustDecodeBounds = true
+                                    }
+                                    BitmapFactory.decodeStream(inputStream, null, opts)
+                                    inputStream.close()
+
+                                    // Calculate sample size for efficient loading
+                                    val sampleSize = maxOf(1, maxOf(opts.outWidth / (elWidth.toInt() * 2), opts.outHeight / (elHeight.toInt() * 2)))
+                                    val decodeOpts = BitmapFactory.Options().apply {
+                                        inSampleSize = sampleSize
+                                    }
+                                    val stream2 = context.contentResolver.openInputStream(uri)
+                                    if (stream2 != null) {
+                                        val bmp = BitmapFactory.decodeStream(stream2, null, decodeOpts)
+                                        stream2.close()
+                                        if (bmp != null) {
+                                            // Clip to rounded rect
+                                            val clippedBmp = Bitmap.createBitmap(elWidth.toInt().coerceAtLeast(1), elHeight.toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+                                            val clipCanvas = Canvas(clippedBmp)
+                                            val clipPath = android.graphics.Path().apply {
+                                                addRoundRect(RectF(0f, 0f, elWidth, elHeight), corner, corner, android.graphics.Path.Direction.CW)
+                                            }
+                                            clipCanvas.clipPath(clipPath)
+                                            clipCanvas.drawBitmap(bmp, null, RectF(0f, 0f, elWidth, elHeight), Paint(Paint.ANTI_ALIAS_FLAG))
+                                            canvas.drawBitmap(clippedBmp, elLeft, elTop, null)
+                                            bmp.recycle()
+                                            imageLoaded = true
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                // Fall through to placeholder
+                            }
+                        }
                     }
-                    canvas.drawText("🖼 Photo Layer", elLeft + elWidth / 2f, elTop + elHeight / 2f, labelPaint)
+
+                    if (!imageLoaded) {
+                        // Placeholder card
+                        val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = parseColor("#E2E8F0", android.graphics.Color.LTGRAY)
+                            style = Paint.Style.FILL
+                        }
+                        canvas.drawRoundRect(rect, corner, corner, cardPaint)
+
+                        val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = parseColor("#64748B", android.graphics.Color.DKGRAY)
+                            textSize = 28f * (outputWidth / 1080f)
+                            textAlign = Paint.Align.CENTER
+                        }
+                        canvas.drawText("Photo Layer", elLeft + elWidth / 2f, elTop + elHeight / 2f, labelPaint)
+                    }
                 }
             }
 
@@ -211,5 +267,55 @@ object CanvasUtils {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(shareIntent, title))
+    }
+
+    /**
+     * Extracts top dominant and vibrant hex colors from an image URI for 1-tap palette generation.
+     */
+    fun extractColorPalette(context: Context, imageUri: Uri, maxColors: Int = 6): List<String> {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(imageUri)
+            val fullBmp = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            if (fullBmp == null) return emptyList()
+
+            val scaledBmp = Bitmap.createScaledBitmap(fullBmp, 64, 64, true)
+            if (scaledBmp != fullBmp) fullBmp.recycle()
+
+            val colorBuckets = mutableMapOf<Int, Int>()
+            val width = scaledBmp.width
+            val height = scaledBmp.height
+
+            for (x in 0 until width step 2) {
+                for (y in 0 until height step 2) {
+                    val pixel = scaledBmp.getPixel(x, y)
+                    val alpha = (pixel shr 24) and 0xFF
+                    if (alpha < 128) continue
+
+                    val r = (pixel shr 16) and 0xFF
+                    val g = (pixel shr 8) and 0xFF
+                    val b = pixel and 0xFF
+
+                    val qr = (r / 32) * 32
+                    val qg = (g / 32) * 32
+                    val qb = (b / 32) * 32
+                    val quantized = (0xFF shl 24) or (qr shl 16) or (qg shl 8) or qb
+
+                    colorBuckets[quantized] = (colorBuckets[quantized] ?: 0) + 1
+                }
+            }
+            scaledBmp.recycle()
+
+            val sortedColors = colorBuckets.entries
+                .sortedByDescending { it.value }
+                .map { String.format("#%06X", 0xFFFFFF and it.key) }
+                .distinct()
+                .take(maxColors)
+
+            if (sortedColors.isEmpty()) listOf("#111827", "#3B82F6", "#10B981", "#F59E0B") else sortedColors
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 }

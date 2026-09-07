@@ -1,11 +1,16 @@
 package com.example.ui.editor
 
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,13 +18,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -34,6 +45,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DynamicForm
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatAlignLeft
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
@@ -48,6 +60,18 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.AlignHorizontalCenter
+import androidx.compose.material.icons.filled.AlignHorizontalLeft
+import androidx.compose.material.icons.filled.AlignHorizontalRight
+import androidx.compose.material.icons.filled.AlignVerticalCenter
+import androidx.compose.material.icons.filled.AlignVerticalTop
+import androidx.compose.material.icons.filled.AlignVerticalBottom
+import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.FormatAlignJustify
+import androidx.compose.material.icons.filled.FormatLineSpacing
+import androidx.compose.material.icons.filled.WidthNormal
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -60,12 +84,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -81,7 +108,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -96,20 +127,18 @@ import com.example.domain.models.ElementType
 import com.example.domain.models.FieldType
 import com.example.domain.models.PosterBackground
 import com.example.domain.models.Project
+import com.example.domain.models.CanvasAspectRatio
 import com.example.domain.models.ShapeType
 import com.example.domain.models.Template
 import com.example.domain.models.TemplateStatus
 import com.example.domain.models.UserRole
 import com.example.ui.components.PosterCanvasView
-import com.example.ui.theme.AccentBlack
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.CardBorderLight
-import com.example.ui.theme.PrimaryBlack
-import com.example.ui.theme.SurfaceLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
-import com.example.ui.theme.TextTertiaryLight
+import com.example.ui.theme.*
 import com.example.utils.CanvasUtils
+import com.example.utils.SmartAlignmentHelper
+import com.example.utils.StickerAssetHelper
+import com.example.utils.StickerCategory
+import com.example.utils.StickerPreset
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -119,6 +148,16 @@ enum class EditorTab(val label: String) {
     BACKGROUND("Background"),
     LAYERS("Layers"),
     DYNAMIC_FIELDS("Field Config")
+}
+
+enum class ColorPickerTarget {
+    TEXT_COLOR,
+    TEXT_STROKE_COLOR,
+    TEXT_SHADOW_COLOR,
+    IMAGE_BORDER_COLOR,
+    SHAPE_FILL,
+    BACKGROUND_COLOR1,
+    BACKGROUND_COLOR2
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,16 +175,26 @@ fun PosterEditorScreen(
     var posterTitle by remember { mutableStateOf("Untitled Poster") }
     var canvasWidth by remember { mutableStateOf(1080) }
     var canvasHeight by remember { mutableStateOf(1080) }
+    var selectedAspectRatio by remember { mutableStateOf(CanvasAspectRatio.SQUARE) }
+    var showAspectRatioMenu by remember { mutableStateOf(false) }
     var background by remember { mutableStateOf(PosterBackground()) }
     val elements = remember { mutableStateListOf<CanvasElement>() }
     val editableFields = remember { mutableStateListOf<EditableField>() }
+    val extractedPalette = remember { mutableStateListOf<String>() }
 
     var selectedElementId by remember { mutableStateOf<String?>(null) }
     var activeTab by remember { mutableStateOf(EditorTab.ELEMENTS) }
+    var smartGuidesEnabled by remember { mutableStateOf(true) }
+
+    var showColorPickerDialog by remember { mutableStateOf(false) }
+    var colorPickerTarget by remember { mutableStateOf<ColorPickerTarget?>(null) }
+    var initialPickerColor by remember { mutableStateOf("#FFFFFF") }
 
     // Undo / Redo history stacks
     val undoStack = remember { mutableStateListOf<List<CanvasElement>>() }
     val redoStack = remember { mutableStateListOf<List<CanvasElement>>() }
+    // Track which element drag just started (to avoid pushing history on every drag frame)
+    var dragHistoryPushedForId by remember { mutableStateOf<String?>(null) }
 
     fun pushHistory() {
         undoStack.add(elements.map { it.copy() })
@@ -200,20 +249,191 @@ fun PosterEditorScreen(
     }
 
     val selectedElement = elements.find { it.id == selectedElementId }
+    var showRenamePosterDialog by remember { mutableStateOf(false) }
+    var editingTitleInput by remember { mutableStateOf("") }
+
+    // Image picker launcher
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { pickedUri ->
+            pushHistory()
+            val newId = "el_" + UUID.randomUUID().toString().take(6)
+            elements.add(
+                CanvasElement(
+                    id = newId,
+                    type = ElementType.IMAGE,
+                    localUri = pickedUri.toString(),
+                    xRatio = 0.15f,
+                    yRatio = 0.25f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.35f,
+                    cornerRadiusDp = 16f,
+                    layerOrder = elements.size + 1
+                )
+            )
+            selectedElementId = newId
+            activeTab = EditorTab.STYLE
+
+            scope.launch {
+                val colors = CanvasUtils.extractColorPalette(context, pickedUri)
+                if (colors.isNotEmpty()) {
+                    extractedPalette.clear()
+                    extractedPalette.addAll(colors)
+                }
+            }
+        }
+    }
+
+    if (showRenamePosterDialog) {
+        Dialog(onDismissRequest = { showRenamePosterDialog = false }) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceLight)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Rename Poster", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = editingTitleInput,
+                        onValueChange = { editingTitleInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimaryLight,
+                            unfocusedTextColor = TextPrimaryLight,
+                            focusedContainerColor = SurfaceLight,
+                            unfocusedContainerColor = SurfaceLight,
+                            focusedBorderColor = PrimaryBlack,
+                            unfocusedBorderColor = BorderLight,
+                            cursorColor = PrimaryBlack
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showRenamePosterDialog = false }) {
+                            Text("Cancel", color = TextSecondaryLight)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (editingTitleInput.isNotBlank()) {
+                                    posterTitle = editingTitleInput.trim()
+                                }
+                                showRenamePosterDialog = false
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlack)
+                        ) {
+                            Text("Update Name")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showColorPickerDialog) {
+        ColorPickerDialog(
+            initialColorHex = initialPickerColor,
+            onColorSelected = { hex ->
+                when (colorPickerTarget) {
+                    ColorPickerTarget.TEXT_COLOR -> {
+                        selectedElement?.let { el ->
+                            val updated = el.copy(fontColorHex = hex)
+                            val idx = elements.indexOfFirst { it.id == el.id }
+                            if (idx != -1) {
+                                pushHistory()
+                                elements[idx] = updated
+                            }
+                        }
+                    }
+                    ColorPickerTarget.TEXT_STROKE_COLOR -> {
+                        selectedElement?.let { el ->
+                            val updated = el.copy(strokeColorHex = hex, hasStroke = true)
+                            val idx = elements.indexOfFirst { it.id == el.id }
+                            if (idx != -1) {
+                                pushHistory()
+                                elements[idx] = updated
+                            }
+                        }
+                    }
+                    ColorPickerTarget.TEXT_SHADOW_COLOR -> {
+                        selectedElement?.let { el ->
+                            val updated = el.copy(shadowColorHex = hex, hasShadow = true)
+                            val idx = elements.indexOfFirst { it.id == el.id }
+                            if (idx != -1) {
+                                pushHistory()
+                                elements[idx] = updated
+                            }
+                        }
+                    }
+                    ColorPickerTarget.IMAGE_BORDER_COLOR -> {
+                        selectedElement?.let { el ->
+                            val updated = el.copy(borderColorHex = hex)
+                            val idx = elements.indexOfFirst { it.id == el.id }
+                            if (idx != -1) {
+                                pushHistory()
+                                elements[idx] = updated
+                            }
+                        }
+                    }
+                    ColorPickerTarget.SHAPE_FILL -> {
+                        selectedElement?.let { el ->
+                            val updated = el.copy(fillColorHex = hex)
+                            val idx = elements.indexOfFirst { it.id == el.id }
+                            if (idx != -1) {
+                                pushHistory()
+                                elements[idx] = updated
+                            }
+                        }
+                    }
+                    ColorPickerTarget.BACKGROUND_COLOR1 -> {
+                        background = background.copy(color1Hex = hex)
+                    }
+                    ColorPickerTarget.BACKGROUND_COLOR2 -> {
+                        background = background.copy(color2Hex = hex)
+                    }
+                    null -> {}
+                }
+            },
+            onDismiss = { showColorPickerDialog = false }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(
+                        modifier = Modifier.clickable {
+                            editingTitleInput = posterTitle
+                            showRenamePosterDialog = true
+                        }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = posterTitle,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimaryLight,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Rename",
+                                tint = AccentBlue,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                         Text(
-                            text = posterTitle,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "${canvasWidth}x${canvasHeight} • ${elements.size} layers",
+                            text = "${canvasWidth}x${canvasHeight} • ${elements.size} layers (Tap to rename)",
                             fontSize = 10.sp,
                             color = TextTertiaryLight
                         )
@@ -325,37 +545,198 @@ fun PosterEditorScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // 1. Canvas Work Area
+            // 1. Canvas Work Area with Smart Guides & Formation Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .background(Color(0xFFE5E7EB))
-                    .padding(16.dp),
+                    .padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                PosterCanvasView(
-                    modifier = Modifier.fillMaxWidth(0.9f),
-                    canvasWidth = canvasWidth,
-                    canvasHeight = canvasHeight,
-                    background = background,
-                    elements = elements,
-                    selectedElementId = selectedElementId,
-                    isInteractive = true,
-                    onElementSelected = { id ->
-                        selectedElementId = id
-                        if (id != null) {
-                            activeTab = EditorTab.STYLE
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Floating smart guides & dimension resizer & quick formation header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Smart Guides toggle pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (smartGuidesEnabled) Color(0xFF0F172A) else Color(0xFFFFFFFF))
+                                    .border(
+                                        1.dp,
+                                        if (smartGuidesEnabled) Color(0xFF334155) else Color(0xFFCBD5E1),
+                                        RoundedCornerShape(20.dp)
+                                    )
+                                    .clickable { smartGuidesEnabled = !smartGuidesEnabled }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(if (smartGuidesEnabled) Color(0xFF00E5FF) else Color(0xFF94A3B8))
+                                )
+                                Text(
+                                    text = if (smartGuidesEnabled) "🧲 Guides: ON" else "🧲 Guides: OFF",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (smartGuidesEnabled) Color.White else Color(0xFF475569)
+                                )
+                            }
+
+                            // Dimension Presets Resizer Pill
+                            Box {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color.White)
+                                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(20.dp))
+                                        .clickable { showAspectRatioMenu = true }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "📐 ${selectedAspectRatio.ratioStr}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showAspectRatioMenu,
+                                    onDismissRequest = { showAspectRatioMenu = false }
+                                ) {
+                                    CanvasAspectRatio.values().forEach { aspect ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Column {
+                                                    Text(
+                                                        "${aspect.ratioStr} • ${aspect.label}",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = if (selectedAspectRatio == aspect) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                    Text(
+                                                        "${aspect.width} x ${aspect.height} px",
+                                                        fontSize = 10.sp,
+                                                        color = Color.Gray
+                                                    )
+                                                }
+                                            },
+                                            onClick = {
+                                                selectedAspectRatio = aspect
+                                                canvasWidth = aspect.width
+                                                canvasHeight = aspect.height
+                                                showAspectRatioMenu = false
+                                                Toast.makeText(context, "Resized to ${aspect.label}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
-                    },
-                    onElementMoved = { elId, newX, newY ->
-                        pushHistory()
-                        val idx = elements.indexOfFirst { it.id == elId }
-                        if (idx != -1) {
-                            elements[idx] = elements[idx].copy(xRatio = newX, yRatio = newY)
+
+                        // Quick formation pills for selected element
+                        if (selectedElement != null) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CanvasQuickActionButton(
+                                    label = "Center",
+                                    icon = Icons.Default.CenterFocusStrong,
+                                    onClick = {
+                                        pushHistory()
+                                        val idx = elements.indexOfFirst { it.id == selectedElement.id }
+                                        if (idx != -1) {
+                                            elements[idx] = SmartAlignmentHelper.centerCanvas(selectedElement)
+                                        }
+                                    }
+                                )
+                                CanvasQuickActionButton(
+                                    label = "Fit Width",
+                                    icon = Icons.Default.WidthNormal,
+                                    onClick = {
+                                        pushHistory()
+                                        val idx = elements.indexOfFirst { it.id == selectedElement.id }
+                                        if (idx != -1) {
+                                            elements[idx] = SmartAlignmentHelper.matchCanvasWidth(selectedElement)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
-                )
+
+                    // Canvas View
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PosterCanvasView(
+                            modifier = Modifier.fillMaxWidth(0.9f),
+                            canvasWidth = canvasWidth,
+                            canvasHeight = canvasHeight,
+                            background = background,
+                            elements = elements,
+                            selectedElementId = selectedElementId,
+                            isInteractive = true,
+                            smartGuidesEnabled = smartGuidesEnabled,
+                            onElementSelected = { id ->
+                                selectedElementId = id
+                                if (id != null) {
+                                    activeTab = EditorTab.STYLE
+                                }
+                                // Reset drag history tracker on new selection
+                                dragHistoryPushedForId = null
+                            },
+                            onElementMoved = { elId, newX, newY ->
+                                // Push history only ONCE per drag gesture (first move event)
+                                if (dragHistoryPushedForId != elId) {
+                                    pushHistory()
+                                    dragHistoryPushedForId = elId
+                                }
+                                val idx = elements.indexOfFirst { it.id == elId }
+                                if (idx != -1) {
+                                    elements[idx] = elements[idx].copy(xRatio = newX, yRatio = newY)
+                                }
+                            },
+                            onElementResized = { elId, newW, newH ->
+                                // Push history only ONCE per drag gesture
+                                if (dragHistoryPushedForId != elId) {
+                                    pushHistory()
+                                    dragHistoryPushedForId = elId
+                                }
+                                val idx = elements.indexOfFirst { it.id == elId }
+                                if (idx != -1) {
+                                    elements[idx] = elements[idx].copy(widthRatio = newW, heightRatio = newH)
+                                }
+                            },
+                            onBackgroundClick = {
+                                selectedElementId = null
+                                activeTab = EditorTab.BACKGROUND
+                            }
+                        )
+                    }
+                }
             }
 
             // 2. Tab Navigation Bar
@@ -389,7 +770,7 @@ fun PosterEditorScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(260.dp),
+                    .height(310.dp),
                 color = SurfaceLight
             ) {
                 when (activeTab) {
@@ -435,22 +816,22 @@ fun PosterEditorScreen(
                                 activeTab = EditorTab.STYLE
                             },
                             onAddImagePlaceholder = {
+                                galleryLauncher.launch("image/*")
+                            },
+                            onAddSticker = { stickerElements ->
                                 pushHistory()
-                                val newId = "el_" + UUID.randomUUID().toString().take(6)
-                                elements.add(
-                                    CanvasElement(
-                                        id = newId,
-                                        type = ElementType.IMAGE,
-                                        xRatio = 0.25f,
-                                        yRatio = 0.35f,
-                                        widthRatio = 0.5f,
-                                        heightRatio = 0.25f,
-                                        cornerRadiusDp = 16f,
-                                        layerOrder = elements.size + 1
-                                    )
-                                )
-                                selectedElementId = newId
+                                val startOrder = elements.size + 1
+                                val placed = stickerElements.mapIndexed { idx, el -> el.copy(layerOrder = startOrder + idx) }
+                                elements.addAll(placed)
+                                selectedElementId = placed.lastOrNull()?.id
                                 activeTab = EditorTab.STYLE
+                            },
+                            onApplySmartLayout = { layoutElements ->
+                                pushHistory()
+                                elements.clear()
+                                elements.addAll(layoutElements)
+                                selectedElementId = layoutElements.firstOrNull()?.id
+                                Toast.makeText(context, "Smart Layout Applied!", Toast.LENGTH_SHORT).show()
                             }
                         )
                     }
@@ -463,12 +844,31 @@ fun PosterEditorScreen(
                         } else {
                             ElementStyleInspector(
                                 element = selectedElement,
+                                totalElements = elements.toList(),
+                                extractedPalette = extractedPalette.toList(),
                                 onUpdate = { updated ->
                                     pushHistory()
                                     val idx = elements.indexOfFirst { it.id == updated.id }
                                     if (idx != -1) {
                                         elements[idx] = updated
                                     }
+                                },
+                                onDistributeV = {
+                                    pushHistory()
+                                    val updated = SmartAlignmentHelper.distributeVertically(elements.toList())
+                                    elements.clear()
+                                    elements.addAll(updated)
+                                },
+                                onDistributeH = {
+                                    pushHistory()
+                                    val updated = SmartAlignmentHelper.distributeHorizontally(elements.toList())
+                                    elements.clear()
+                                    elements.addAll(updated)
+                                },
+                                onPickCustomColor = { target, initial ->
+                                    initialPickerColor = initial
+                                    colorPickerTarget = target
+                                    showColorPickerDialog = true
                                 },
                                 onDelete = {
                                     pushHistory()
@@ -482,6 +882,12 @@ fun PosterEditorScreen(
                     EditorTab.BACKGROUND -> {
                         BackgroundTabContent(
                             currentBg = background,
+                            extractedPalette = extractedPalette.toList(),
+                            onPickCustomColor = { target, initial ->
+                                initialPickerColor = initial
+                                colorPickerTarget = target
+                                showColorPickerDialog = true
+                            },
                             onUpdateBg = { newBg ->
                                 background = newBg
                             }
@@ -566,8 +972,12 @@ fun PosterEditorScreen(
 private fun ElementsTabContent(
     onAddText: () -> Unit,
     onAddShape: (ShapeType) -> Unit,
-    onAddImagePlaceholder: () -> Unit
+    onAddImagePlaceholder: () -> Unit,
+    onAddSticker: (List<CanvasElement>) -> Unit,
+    onApplySmartLayout: (List<CanvasElement>) -> Unit
 ) {
+    var selectedStickerCategory by remember { mutableStateOf(StickerCategory.SALE_DISCOUNT) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -606,7 +1016,7 @@ private fun ElementsTabContent(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        Text("Shapes & Badges", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
+        Text("Basic Shapes", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
         Spacer(modifier = Modifier.height(8.dp))
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -630,13 +1040,135 @@ private fun ElementsTabContent(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("🎨 Stickers & Ready Badges", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Category filter chips
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(StickerCategory.values()) { cat ->
+                val isSel = selectedStickerCategory == cat
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isSel) PrimaryBlack else Color(0xFFF1F5F9))
+                        .clickable { selectedStickerCategory = cat }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = cat.label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSel) Color.White else Color(0xFF334155)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Sticker items for selected category
+        val categoryStickers = StickerAssetHelper.presets.filter { it.category == selectedStickerCategory }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(categoryStickers) { sticker ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                        .clickable { onAddSticker(sticker.elementGenerator()) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = "+ ${sticker.title}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0F172A)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+        Text("🪄 1-Tap Smart Layout Formations", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFEFF6FF))
+                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(10.dp))
+                    .clickable { onApplySmartLayout(SmartAlignmentHelper.createHeroAnnouncementTemplate()) }
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("⭐ Hero Event", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D4ED8))
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFFEF2F2))
+                    .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(10.dp))
+                    .clickable { onApplySmartLayout(SmartAlignmentHelper.createBigSaleTemplate()) }
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🔥 Flash Sale", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB91C1C))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF8FAFC))
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
+                    .clickable { onApplySmartLayout(SmartAlignmentHelper.createQuoteCardTemplate()) }
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("💬 Quote Card", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFF5F3FF))
+                    .border(1.dp, Color(0xFFDDD6FE), RoundedCornerShape(10.dp))
+                    .clickable { onApplySmartLayout(SmartAlignmentHelper.createEventShowcaseTemplate()) }
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🗓️ Webinar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF6D28D9))
+            }
+        }
     }
 }
 
 @Composable
 private fun ElementStyleInspector(
     element: CanvasElement,
+    totalElements: List<CanvasElement>,
+    extractedPalette: List<String> = emptyList(),
     onUpdate: (CanvasElement) -> Unit,
+    onDistributeV: (() -> Unit)? = null,
+    onDistributeH: (() -> Unit)? = null,
+    onPickCustomColor: (ColorPickerTarget, String) -> Unit,
     onDelete: () -> Unit
 ) {
     Column(
@@ -667,9 +1199,19 @@ private fun ElementStyleInspector(
                 OutlinedTextField(
                     value = element.text,
                     onValueChange = { onUpdate(element.copy(text = it)) },
-                    label = { Text("Text Content") },
+                    label = { Text("Text Content", color = TextSecondaryLight) },
                     modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
+                    maxLines = 3,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimaryLight,
+                        unfocusedTextColor = TextPrimaryLight,
+                        focusedContainerColor = SurfaceLight,
+                        unfocusedContainerColor = SurfaceLight,
+                        focusedBorderColor = PrimaryBlack,
+                        unfocusedBorderColor = BorderLight,
+                        cursorColor = PrimaryBlack
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -742,10 +1284,35 @@ private fun ElementStyleInspector(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                // Extracted Image Palette Swatches (if available)
+                if (extractedPalette.isNotEmpty()) {
+                    Text("🎨 Extracted Image Palette", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(extractedPalette) { hex ->
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(android.graphics.Color.parseColor(hex)))
+                                    .border(1.dp, Color(0xFFCBD5E1), CircleShape)
+                                    .clickable { onUpdate(element.copy(fontColorHex = hex)) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 // Quick Text Color Palette
                 Text("Text Color", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(4.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     val colors = listOf("#111827", "#FFFFFF", "#2563EB", "#DC2626", "#059669", "#D97706", "#7C3AED", "#DB2777")
                     items(colors) { hex ->
                         Box(
@@ -757,13 +1324,91 @@ private fun ElementStyleInspector(
                                 .clickable { onUpdate(element.copy(fontColorHex = hex)) }
                         )
                     }
+
+                    item {
+                        IconButton(
+                            onClick = { onPickCustomColor(ColorPickerTarget.TEXT_COLOR, element.fontColorHex) },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(Color(0xFFF3F4F6), CircleShape)
+                        ) {
+                            Icon(Icons.Default.ColorLens, contentDescription = "Custom Color", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Text Outline / Stroke controls
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = element.hasStroke,
+                        onCheckedChange = { onUpdate(element.copy(hasStroke = it)) }
+                    )
+                    Text("Text Outline / Stroke", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    if (element.hasStroke) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(element.strokeColorHex)))
+                                .border(1.dp, Color(0xFFCBD5E1), CircleShape)
+                                .clickable { onPickCustomColor(ColorPickerTarget.TEXT_STROKE_COLOR, element.strokeColorHex) }
+                        )
+                    }
+                }
+
+                // Text Drop Shadow
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = element.hasShadow,
+                        onCheckedChange = { onUpdate(element.copy(hasShadow = it)) }
+                    )
+                    Text("Drop Shadow", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    if (element.hasShadow) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(element.shadowColorHex)))
+                                .border(1.dp, Color(0xFFCBD5E1), CircleShape)
+                                .clickable { onPickCustomColor(ColorPickerTarget.TEXT_SHADOW_COLOR, element.shadowColorHex) }
+                        )
+                    }
                 }
             }
 
             ElementType.SHAPE -> {
+                // Extracted Image Palette Swatches
+                if (extractedPalette.isNotEmpty()) {
+                    Text("🎨 Extracted Image Palette", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(extractedPalette) { hex ->
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(android.graphics.Color.parseColor(hex)))
+                                    .border(1.dp, Color(0xFFCBD5E1), CircleShape)
+                                    .clickable { onUpdate(element.copy(fillColorHex = hex)) }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 Text("Shape Color", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(4.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyRow(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     val colors = listOf("#3B82F6", "#111827", "#FFFFFF", "#10B981", "#EF4444", "#F59E0B", "#8B5CF6", "#EC4899")
                     items(colors) { hex ->
                         Box(
@@ -774,6 +1419,17 @@ private fun ElementStyleInspector(
                                 .border(1.dp, Color(0xFFCBD5E1), CircleShape)
                                 .clickable { onUpdate(element.copy(fillColorHex = hex)) }
                         )
+                    }
+
+                    item {
+                        IconButton(
+                            onClick = { onPickCustomColor(ColorPickerTarget.SHAPE_FILL, element.fillColorHex) },
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(Color(0xFFF3F4F6), CircleShape)
+                        ) {
+                            Icon(Icons.Default.ColorLens, contentDescription = "Custom Color", modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
 
@@ -803,8 +1459,9 @@ private fun ElementStyleInspector(
             }
 
             ElementType.IMAGE -> {
-                Text("Image Properties", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("Image Styling & Borders", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Corner: ${element.cornerRadiusDp.toInt()}dp", fontSize = 11.sp, modifier = Modifier.width(80.dp))
                     Slider(
@@ -814,14 +1471,251 @@ private fun ElementStyleInspector(
                         modifier = Modifier.weight(1f)
                     )
                 }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Border: ${element.borderWidthDp.toInt()}dp", fontSize = 11.sp, modifier = Modifier.width(80.dp))
+                    Slider(
+                        value = element.borderWidthDp,
+                        onValueChange = { onUpdate(element.copy(borderWidthDp = it)) },
+                        valueRange = 0f..10f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(android.graphics.Color.parseColor(element.borderColorHex)))
+                            .border(1.dp, Color(0xFFCBD5E1), CircleShape)
+                            .clickable { onPickCustomColor(ColorPickerTarget.IMAGE_BORDER_COLOR, element.borderColorHex) }
+                    )
+                }
+            }
+        }
+
+        // Dedicated Smart Formation & Alignment section for all elements
+        QuickFormationSection(
+            element = element,
+            totalElements = totalElements,
+            onUpdate = onUpdate,
+            onDistributeV = onDistributeV,
+            onDistributeH = onDistributeH
+        )
+    }
+}
+
+@Composable
+private fun QuickFormationSection(
+    element: CanvasElement,
+    totalElements: List<CanvasElement>,
+    onUpdate: (CanvasElement) -> Unit,
+    onDistributeV: (() -> Unit)? = null,
+    onDistributeH: (() -> Unit)? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF8FAFC))
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Smart Formation & Alignment",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimaryLight
+            )
+            Text(
+                "1-Tap",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF2563EB),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFFEFF6FF))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Horizontal Alignment Row
+        Text("Horizontal Alignment", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FormationButton(
+                label = "Left",
+                icon = Icons.Default.AlignHorizontalLeft,
+                modifier = Modifier.weight(1f),
+                onClick = { onUpdate(SmartAlignmentHelper.alignLeft(element)) }
+            )
+            FormationButton(
+                label = "Center",
+                icon = Icons.Default.AlignHorizontalCenter,
+                modifier = Modifier.weight(1.1f),
+                onClick = { onUpdate(SmartAlignmentHelper.alignCenterH(element)) }
+            )
+            FormationButton(
+                label = "Right",
+                icon = Icons.Default.AlignHorizontalRight,
+                modifier = Modifier.weight(1f),
+                onClick = { onUpdate(SmartAlignmentHelper.alignRight(element)) }
+            )
+            FormationButton(
+                label = "Fit Width",
+                icon = Icons.Default.WidthNormal,
+                modifier = Modifier.weight(1.1f),
+                onClick = { onUpdate(SmartAlignmentHelper.matchCanvasWidth(element)) }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Vertical Alignment Row
+        Text("Vertical Alignment", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            FormationButton(
+                label = "Top",
+                icon = Icons.Default.AlignVerticalTop,
+                modifier = Modifier.weight(1f),
+                onClick = { onUpdate(SmartAlignmentHelper.alignTop(element)) }
+            )
+            FormationButton(
+                label = "Center",
+                icon = Icons.Default.AlignVerticalCenter,
+                modifier = Modifier.weight(1.1f),
+                onClick = { onUpdate(SmartAlignmentHelper.alignCenterV(element)) }
+            )
+            FormationButton(
+                label = "Bottom",
+                icon = Icons.Default.AlignVerticalBottom,
+                modifier = Modifier.weight(1f),
+                onClick = { onUpdate(SmartAlignmentHelper.alignBottom(element)) }
+            )
+            FormationButton(
+                label = "Center All",
+                icon = Icons.Default.CenterFocusStrong,
+                modifier = Modifier.weight(1.2f),
+                isHighlight = true,
+                onClick = { onUpdate(SmartAlignmentHelper.centerCanvas(element)) }
+            )
+        }
+
+        // Multi-element Distribution
+        if (totalElements.size >= 3) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text("Multi-Element Spacing", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                FormationButton(
+                    label = "Distribute Vertical",
+                    icon = Icons.Default.FormatLineSpacing,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onDistributeV?.invoke() }
+                )
+                FormationButton(
+                    label = "Distribute Horizontal",
+                    icon = Icons.Default.FormatAlignJustify,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onDistributeH?.invoke() }
+                )
             }
         }
     }
 }
 
 @Composable
+private fun FormationButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    isHighlight: Boolean = false,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isHighlight) Color(0xFF2563EB) else Color.White)
+            .border(1.dp, if (isHighlight) Color(0xFF1D4ED8) else Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(13.dp),
+                tint = if (isHighlight) Color.White else Color(0xFF1E293B)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isHighlight) Color.White else Color(0xFF1E293B),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun CanvasQuickActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White)
+            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(12.dp),
+            tint = Color(0xFF1E293B)
+        )
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1E293B)
+        )
+    }
+}
+
+@Composable
 private fun BackgroundTabContent(
     currentBg: PosterBackground,
+    extractedPalette: List<String> = emptyList(),
+    onPickCustomColor: (ColorPickerTarget, String) -> Unit,
     onUpdateBg: (PosterBackground) -> Unit
 ) {
     Column(
@@ -833,11 +1727,38 @@ private fun BackgroundTabContent(
         Text("Poster Background", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
         Spacer(modifier = Modifier.height(10.dp))
 
+        // Extracted Image Palette row (if available)
+        if (extractedPalette.isNotEmpty()) {
+            Text("🎨 Extracted Image Palette", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+            Spacer(modifier = Modifier.height(6.dp))
+            LazyRow(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(extractedPalette) { hex ->
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(android.graphics.Color.parseColor(hex)))
+                            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                            .clickable {
+                                onUpdateBg(PosterBackground(type = BackgroundType.SOLID, color1Hex = hex))
+                            }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
         Text("Solid Palettes", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
         Spacer(modifier = Modifier.height(6.dp))
 
         val solids = listOf("#FFFFFF", "#F3F4F6", "#0F172A", "#FFFBEB", "#18181B", "#FEF2F2", "#EFF6FF", "#ECFDF5")
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyRow(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             items(solids) { hex ->
                 Box(
                     modifier = Modifier
@@ -849,6 +1770,17 @@ private fun BackgroundTabContent(
                             onUpdateBg(PosterBackground(type = BackgroundType.SOLID, color1Hex = hex))
                         }
                 )
+            }
+
+            item {
+                IconButton(
+                    onClick = { onPickCustomColor(ColorPickerTarget.BACKGROUND_COLOR1, currentBg.color1Hex) },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
+                ) {
+                    Icon(Icons.Default.ColorLens, contentDescription = "Custom Color", modifier = Modifier.size(18.dp))
+                }
             }
         }
 
@@ -886,6 +1818,43 @@ private fun BackgroundTabContent(
                             )
                         }
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+        Text("Custom Gradient Colors", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextSecondaryLight)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Color 1
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(android.graphics.Color.parseColor(currentBg.color1Hex)))
+                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                        .clickable { onPickCustomColor(ColorPickerTarget.BACKGROUND_COLOR1, currentBg.color1Hex) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.ColorLens, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+                Text("Start Color", fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+
+            // Color 2
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(android.graphics.Color.parseColor(currentBg.color2Hex ?: currentBg.color1Hex)))
+                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                        .clickable { onPickCustomColor(ColorPickerTarget.BACKGROUND_COLOR2, currentBg.color2Hex ?: currentBg.color1Hex) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.ColorLens, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+                Text("End Color", fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
             }
         }
     }
@@ -1005,9 +1974,19 @@ private fun DynamicFieldConfigurator(
                 OutlinedTextField(
                     value = fieldLabel,
                     onValueChange = { fieldLabel = it },
-                    label = { Text("Field Label", fontSize = 11.sp) },
+                    label = { Text("Field Label", fontSize = 11.sp, color = TextSecondaryLight) },
                     modifier = Modifier.weight(1.5f),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimaryLight,
+                        unfocusedTextColor = TextPrimaryLight,
+                        focusedContainerColor = SurfaceLight,
+                        unfocusedContainerColor = SurfaceLight,
+                        focusedBorderColor = PrimaryBlack,
+                        unfocusedBorderColor = BorderLight,
+                        cursorColor = PrimaryBlack
+                    )
                 )
 
                 // Field Type Selector
@@ -1060,6 +2039,188 @@ private fun DynamicFieldConfigurator(
                 Icon(Icons.Default.DynamicForm, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Link as Editable Field", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ColorPickerDialog(
+    initialColorHex: String,
+    onColorSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val hsv = remember {
+        val floatArray = FloatArray(3)
+        try {
+            android.graphics.Color.colorToHSV(android.graphics.Color.parseColor(initialColorHex), floatArray)
+        } catch (e: Exception) {
+            floatArray[0] = 0f
+            floatArray[1] = 0f
+            floatArray[2] = 1f
+        }
+        floatArray
+    }
+
+    var hue by remember { mutableStateOf(hsv[0]) }
+    var saturation by remember { mutableStateOf(hsv[1]) }
+    var brightness by remember { mutableStateOf(hsv[2]) }
+
+    val currentColor = remember(hue, saturation, brightness) {
+        Color.hsv(hue, saturation, brightness)
+    }
+
+    val hexString = remember(currentColor) {
+        String.format("#%06X", (0xFFFFFF and android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness))))
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "HSB Color Picker",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryLight
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Color Preview Box
+                Box(
+                    modifier = Modifier
+                        .size(120.dp, 60.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(currentColor)
+                        .border(2.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = hexString,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondaryLight
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // 1. Hue Slider (Spectrum)
+                Text("Hue: ${hue.toInt()}°", fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth())
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red
+                                )
+                            )
+                        )
+                )
+                Slider(
+                    value = hue,
+                    onValueChange = { hue = it },
+                    valueRange = 0f..360f,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.Transparent,
+                        inactiveTrackColor = Color.Transparent
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. Saturation Slider
+                Text("Saturation: ${(saturation * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth())
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.White, Color.hsv(hue, 1f, 1f))
+                            )
+                        )
+                )
+                Slider(
+                    value = saturation,
+                    onValueChange = { saturation = it },
+                    valueRange = 0f..1f,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.Transparent,
+                        inactiveTrackColor = Color.Transparent
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3. Brightness Slider
+                Text("Brightness: ${(brightness * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.fillMaxWidth())
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Black, Color.hsv(hue, saturation, 1f))
+                            )
+                        )
+                )
+                Slider(
+                    value = brightness,
+                    onValueChange = { brightness = it },
+                    valueRange = 0f..1f,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.Transparent,
+                        inactiveTrackColor = Color.Transparent
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            onColorSelected(hexString)
+                            onDismiss()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlack)
+                    ) {
+                        Text("Select Color")
+                    }
+                }
             }
         }
     }

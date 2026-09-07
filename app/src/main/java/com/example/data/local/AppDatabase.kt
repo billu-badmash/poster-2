@@ -194,6 +194,32 @@ interface UserDao {
     suspend fun insertUsers(users: List<UserEntity>)
 }
 
+@Entity(tableName = "template_versions")
+data class TemplateVersionEntity(
+    @PrimaryKey val versionId: String,
+    val templateId: String,
+    val versionNumber: Int,
+    val elementsJson: String,
+    val backgroundJson: String,
+    val editableFieldsJson: String,
+    val changedByUserId: String,
+    val changedByUserName: String,
+    val changeNote: String,
+    val createdAt: Long
+)
+
+@Dao
+interface TemplateVersionDao {
+    @Query("SELECT * FROM template_versions WHERE templateId = :templateId ORDER BY versionNumber DESC")
+    fun getVersionsByTemplate(templateId: String): Flow<List<TemplateVersionEntity>>
+
+    @Query("SELECT * FROM template_versions WHERE templateId = :templateId ORDER BY versionNumber DESC LIMIT 1")
+    suspend fun getLatestVersion(templateId: String): TemplateVersionEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVersion(version: TemplateVersionEntity)
+}
+
 // Database
 @Database(
     entities = [
@@ -201,9 +227,10 @@ interface UserDao {
         FavoriteEntity::class,
         TemplateEntity::class,
         NotificationEntity::class,
-        UserEntity::class
+        UserEntity::class,
+        TemplateVersionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -212,4 +239,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun templateDao(): TemplateDao
     abstract fun notificationDao(): NotificationDao
     abstract fun userDao(): UserDao
+    abstract fun templateVersionDao(): TemplateVersionDao
 }

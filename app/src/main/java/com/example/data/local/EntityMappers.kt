@@ -7,6 +7,7 @@ import com.example.domain.models.PosterBackground
 import com.example.domain.models.Project
 import com.example.domain.models.Template
 import com.example.domain.models.TemplateStatus
+import com.example.domain.models.TemplateVersion
 import com.example.domain.models.UserProfile
 import com.example.domain.models.UserRole
 import com.squareup.moshi.Moshi
@@ -225,5 +226,50 @@ fun NotificationEntity.toDomain(): AppNotification {
         type = type,
         timestamp = timestamp,
         isRead = isRead
+    )
+}
+
+fun TemplateVersion.toEntity(): TemplateVersionEntity {
+    return TemplateVersionEntity(
+        versionId = versionId,
+        templateId = templateId,
+        versionNumber = versionNumber,
+        elementsJson = MoshiHelper.elementListAdapter.toJson(elements),
+        backgroundJson = MoshiHelper.backgroundAdapter.toJson(background),
+        editableFieldsJson = MoshiHelper.fieldListAdapter.toJson(editableFields),
+        changedByUserId = changedByUserId,
+        changedByUserName = changedByUserName,
+        changeNote = changeNote,
+        createdAt = createdAt
+    )
+}
+
+fun TemplateVersionEntity.toDomain(): TemplateVersion {
+    val elemList = try {
+        MoshiHelper.elementListAdapter.fromJson(elementsJson) ?: emptyList()
+    } catch (e: Exception) {
+        emptyList()
+    }
+    val bg = try {
+        MoshiHelper.backgroundAdapter.fromJson(backgroundJson) ?: PosterBackground()
+    } catch (e: Exception) {
+        PosterBackground()
+    }
+    val fields = try {
+        MoshiHelper.fieldListAdapter.fromJson(editableFieldsJson) ?: emptyList()
+    } catch (e: Exception) {
+        emptyList()
+    }
+    return TemplateVersion(
+        versionId = versionId,
+        templateId = templateId,
+        versionNumber = versionNumber,
+        elements = elemList,
+        background = bg,
+        editableFields = fields,
+        changedByUserId = changedByUserId,
+        changedByUserName = changedByUserName,
+        changeNote = changeNote,
+        createdAt = createdAt
     )
 }

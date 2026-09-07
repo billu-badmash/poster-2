@@ -6,11 +6,40 @@ enum class UserRole {
     ADMIN
 }
 
+enum class ExportQuality(val label: String, val description: String, val scaleFactor: Float) {
+    STANDARD("Standard (540p)", "Fast export, smaller file", 0.5f),
+    HIGH("High (1080p)", "Best balance of quality & size", 1.0f),
+    MAX_4K("Max (4K)", "Highest quality, large file", 2.0f)
+}
+
 enum class TemplateStatus {
     DRAFT,
     PENDING,
     APPROVED,
-    REJECTED
+    PUBLISHED,
+    REJECTED,
+    ARCHIVED
+}
+
+enum class TemplatePermissionLevel(val label: String, val badgeColorHex: String, val description: String) {
+    BASIC("Basic Editing", "#059669", "Customize dynamic form text fields and replace photos."),
+    FLEXIBLE("Flexible Editing", "#2563EB", "Edit text, change fonts & colors, move select items, and customize background."),
+    FULLY_EDITABLE("Fully Editable", "#7C3AED", "Full creative freedom to add, move, reorder, and redesign all elements.")
+}
+
+data class ElementPermissions(
+    val editableText: Boolean = true,
+    val changeFont: Boolean = true,
+    val changeColor: Boolean = true,
+    val move: Boolean = true,
+    val resize: Boolean = true,
+    val rotate: Boolean = true,
+    val delete: Boolean = true
+)
+
+enum class ProjectStatus(val label: String) {
+    DRAFT("Draft"),
+    COMPLETED("Completed")
 }
 
 enum class ElementType {
@@ -94,6 +123,7 @@ data class CanvasElement(
     val layerOrder: Int = 0,
     val isLocked: Boolean = false,
     val isVisible: Boolean = true,
+    val permissions: ElementPermissions = ElementPermissions(),
     
     // Editable field link
     val isEditableField: Boolean = false,
@@ -151,6 +181,7 @@ data class Template(
     val background: PosterBackground = PosterBackground(),
     val elements: List<CanvasElement> = emptyList(),
     val editableFields: List<EditableField> = emptyList(),
+    val permissionLevel: TemplatePermissionLevel = TemplatePermissionLevel.FLEXIBLE,
     val status: TemplateStatus = TemplateStatus.APPROVED,
     val rejectionReason: String? = null,
     val isFeatured: Boolean = false,
@@ -176,6 +207,7 @@ data class Project(
     val fieldValues: Map<String, String> = emptyMap(),
     val previewThumbnail: String? = null,
     val isDraft: Boolean = false,
+    val projectStatus: ProjectStatus = if (isDraft) ProjectStatus.DRAFT else ProjectStatus.COMPLETED,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
@@ -209,4 +241,17 @@ data class AppNotification(
     val type: String, // APPROVAL, REJECTION, FEATURED, SYSTEM
     val timestamp: Long = System.currentTimeMillis(),
     val isRead: Boolean = false
+)
+
+data class TemplateVersion(
+    val versionId: String,
+    val templateId: String,
+    val versionNumber: Int,
+    val elements: List<CanvasElement> = emptyList(),
+    val background: PosterBackground = PosterBackground(),
+    val editableFields: List<EditableField> = emptyList(),
+    val changedByUserId: String,
+    val changedByUserName: String,
+    val changeNote: String = "",
+    val createdAt: Long = System.currentTimeMillis()
 )

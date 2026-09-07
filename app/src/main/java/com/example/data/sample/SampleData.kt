@@ -4,11 +4,13 @@ import com.example.domain.models.BackgroundType
 import com.example.domain.models.CanvasElement
 import com.example.domain.models.Category
 import com.example.domain.models.EditableField
+import com.example.domain.models.ElementPermissions
 import com.example.domain.models.ElementType
 import com.example.domain.models.FieldType
 import com.example.domain.models.PosterBackground
 import com.example.domain.models.ShapeType
 import com.example.domain.models.Template
+import com.example.domain.models.TemplatePermissionLevel
 import com.example.domain.models.TemplateStatus
 
 object SampleData {
@@ -1237,6 +1239,675 @@ object SampleData {
                     label = "Contact & Website",
                     defaultValue = "Join Now: +1 (555) 678-9012 • irontemple.fit"
                 )
+            )
+        ),
+
+        // 7. Global AI & Tech Summit 2026 (Story 9:16)
+        Template(
+            templateId = "tmpl_ai_summit_2026",
+            creatorId = "creator_studio_x",
+            creatorName = "Studio X Designs",
+            name = "Global AI & Tech Summit 2026",
+            description = "Futuristic cyber gradient poster for tech conferences, AI keynotes, and hackathons.",
+            categoryId = "cat_events",
+            categoryName = "Events",
+            canvasWidth = 1080,
+            canvasHeight = 1920,
+            background = PosterBackground(
+                type = BackgroundType.GRADIENT_LINEAR,
+                color1Hex = "#0B1120",
+                color2Hex = "#1E1B4B",
+                angleDegrees = 160f
+            ),
+            isFeatured = true,
+            isPro = true,
+            usageCount = 2890,
+            favoriteCount = 940,
+            rating = 5.0f,
+            status = TemplateStatus.APPROVED,
+            permissionLevel = TemplatePermissionLevel.FULLY_EDITABLE,
+            elements = listOf(
+                CanvasElement(
+                    id = "el_ai_badge",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#3B82F6",
+                    shapeCornerRadiusDp = 10f,
+                    xRatio = 0.1f,
+                    yRatio = 0.08f,
+                    widthRatio = 0.45f,
+                    heightRatio = 0.035f,
+                    layerOrder = 0
+                ),
+                CanvasElement(
+                    id = "el_ai_tag",
+                    type = ElementType.TEXT,
+                    text = "NEXT-GEN INTELLIGENCE",
+                    fontSizeSp = 11f,
+                    fontColorHex = "#FFFFFF",
+                    isBold = true,
+                    letterSpacingSp = 1.5f,
+                    xRatio = 0.12f,
+                    yRatio = 0.085f,
+                    widthRatio = 0.42f,
+                    heightRatio = 0.03f,
+                    layerOrder = 1
+                ),
+                CanvasElement(
+                    id = "el_ai_title",
+                    type = ElementType.TEXT,
+                    text = "WORLD AI SUMMIT\n& FUTURE EXPO",
+                    fontSizeSp = 28f,
+                    fontColorHex = "#F8FAFC",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_ai_title",
+                    xRatio = 0.1f,
+                    yRatio = 0.14f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.11f,
+                    layerOrder = 2
+                ),
+                CanvasElement(
+                    id = "el_ai_subtitle",
+                    type = ElementType.TEXT,
+                    text = "Featuring 50+ Global Keynote Visionaries, Deep Learning Labs & Startup Pitch Arena",
+                    fontSizeSp = 13f,
+                    fontColorHex = "#94A3B8",
+                    isEditableField = true,
+                    editableFieldId = "field_ai_sub",
+                    xRatio = 0.1f,
+                    yRatio = 0.26f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.08f,
+                    layerOrder = 3
+                ),
+                CanvasElement(
+                    id = "el_ai_card",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#1E293B",
+                    strokeColorHex = "#38BDF8",
+                    strokeWidthDp = 1.5f,
+                    shapeCornerRadiusDp = 16f,
+                    xRatio = 0.1f,
+                    yRatio = 0.36f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.22f,
+                    layerOrder = 4
+                ),
+                CanvasElement(
+                    id = "el_ai_date",
+                    type = ElementType.TEXT,
+                    text = "📅 OCTOBER 14-16, 2026\n📍 Grand Civic Tech Convention Center",
+                    fontSizeSp = 14f,
+                    fontColorHex = "#38BDF8",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_ai_date",
+                    xRatio = 0.15f,
+                    yRatio = 0.39f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.07f,
+                    layerOrder = 5
+                ),
+                CanvasElement(
+                    id = "el_ai_speakers",
+                    type = ElementType.TEXT,
+                    text = "Special Keynotes: Dr. Elena Vance • Marcus Sterling • Lisa Chen",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#F1F5F9",
+                    xRatio = 0.15f,
+                    yRatio = 0.47f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.08f,
+                    layerOrder = 6
+                ),
+                CanvasElement(
+                    id = "el_ai_cta_bg",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#38BDF8",
+                    shapeCornerRadiusDp = 14f,
+                    xRatio = 0.1f,
+                    yRatio = 0.62f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.06f,
+                    layerOrder = 7
+                ),
+                CanvasElement(
+                    id = "el_ai_cta_txt",
+                    type = ElementType.TEXT,
+                    text = "RESERVE PASSES • AISUMMIT2026.IO",
+                    fontSizeSp = 13f,
+                    fontColorHex = "#0B1120",
+                    isBold = true,
+                    xRatio = 0.1f,
+                    yRatio = 0.635f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.04f,
+                    layerOrder = 8
+                )
+            ),
+            editableFields = listOf(
+                EditableField("field_ai_title", "el_ai_title", FieldType.TEXT, "Event Title", "WORLD AI SUMMIT\n& FUTURE EXPO"),
+                EditableField("field_ai_sub", "el_ai_subtitle", FieldType.TEXT, "Description", "Featuring 50+ Global Keynote Visionaries"),
+                EditableField("field_ai_date", "el_ai_date", FieldType.DATE, "Date & Venue", "📅 OCTOBER 14-16, 2026\n📍 Grand Civic Tech Center")
+            )
+        ),
+
+        // 8. Gourmet Burger & Craft Beer Weekend (Square 1:1)
+        Template(
+            templateId = "tmpl_burger_fest",
+            creatorId = "creator_studio_x",
+            creatorName = "Studio X Designs",
+            name = "Gourmet Burger & Beer Fest",
+            description = "Delicious food promotion flyer with discount badge and appetizing layout.",
+            categoryId = "cat_food",
+            categoryName = "Food & Cafe",
+            canvasWidth = 1080,
+            canvasHeight = 1080,
+            background = PosterBackground(
+                type = BackgroundType.GRADIENT_LINEAR,
+                color1Hex = "#18181B",
+                color2Hex = "#27272A",
+                angleDegrees = 145f
+            ),
+            isFeatured = true,
+            isPro = false,
+            usageCount = 1840,
+            favoriteCount = 620,
+            rating = 4.8f,
+            status = TemplateStatus.APPROVED,
+            permissionLevel = TemplatePermissionLevel.FULLY_EDITABLE,
+            elements = listOf(
+                CanvasElement(
+                    id = "el_burg_badge",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#F59E0B",
+                    shapeCornerRadiusDp = 8f,
+                    xRatio = 0.1f,
+                    yRatio = 0.1f,
+                    widthRatio = 0.35f,
+                    heightRatio = 0.05f,
+                    layerOrder = 0
+                ),
+                CanvasElement(
+                    id = "el_burg_badge_txt",
+                    type = ElementType.TEXT,
+                    text = "WEEKEND SPECIAL",
+                    fontSizeSp = 11f,
+                    fontColorHex = "#000000",
+                    isBold = true,
+                    xRatio = 0.12f,
+                    yRatio = 0.11f,
+                    widthRatio = 0.31f,
+                    heightRatio = 0.04f,
+                    layerOrder = 1
+                ),
+                CanvasElement(
+                    id = "el_burg_title",
+                    type = ElementType.TEXT,
+                    text = "SMASH BURGER\n& CRAFT BEER",
+                    fontSizeSp = 26f,
+                    fontColorHex = "#FFFFFF",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_burg_title",
+                    xRatio = 0.1f,
+                    yRatio = 0.18f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.16f,
+                    layerOrder = 2
+                ),
+                CanvasElement(
+                    id = "el_burg_offer_card",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#EF4444",
+                    shapeCornerRadiusDp = 16f,
+                    xRatio = 0.1f,
+                    yRatio = 0.37f,
+                    widthRatio = 0.45f,
+                    heightRatio = 0.15f,
+                    layerOrder = 3
+                ),
+                CanvasElement(
+                    id = "el_burg_offer_txt",
+                    type = ElementType.TEXT,
+                    text = "BUY 1 GET 1\nFREE BEER 🍺",
+                    fontSizeSp = 16f,
+                    fontColorHex = "#FFFFFF",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_burg_offer",
+                    xRatio = 0.13f,
+                    yRatio = 0.40f,
+                    widthRatio = 0.39f,
+                    heightRatio = 0.10f,
+                    layerOrder = 4
+                ),
+                CanvasElement(
+                    id = "el_burg_details",
+                    type = ElementType.TEXT,
+                    text = "Fresh 100% Angus Beef • Brioche Bun • Hand-cut Truffle Fries • IPA Selection",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#A1A1AA",
+                    xRatio = 0.1f,
+                    yRatio = 0.56f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.1f,
+                    layerOrder = 5
+                ),
+                CanvasElement(
+                    id = "el_burg_loc",
+                    type = ElementType.TEXT,
+                    text = "📍 404 Downtown Avenue • Open Daily 12PM - 11PM\nCall for Reservations: (555) 890-1234",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#FBBF24",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_burg_loc",
+                    xRatio = 0.1f,
+                    yRatio = 0.70f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.1f,
+                    layerOrder = 6
+                )
+            ),
+            editableFields = listOf(
+                EditableField("field_burg_title", "el_burg_title", FieldType.TEXT, "Main Dish / Combo", "SMASH BURGER\n& CRAFT BEER"),
+                EditableField("field_burg_offer", "el_burg_offer_txt", FieldType.TEXT, "Special Promo", "BUY 1 GET 1\nFREE BEER 🍺"),
+                EditableField("field_burg_loc", "el_burg_loc", FieldType.ADDRESS, "Location & Hours", "📍 404 Downtown Avenue • Open Daily")
+            )
+        ),
+
+        // 9. Cyber Weekend Mega Flash Sale (Square 1:1)
+        Template(
+            templateId = "tmpl_flash_sale_cyber",
+            creatorId = "creator_studio_x",
+            creatorName = "Studio X Designs",
+            name = "Cyber Mega Flash Sale",
+            description = "High energy retail sale banner with vibrant discount tags and promo codes.",
+            categoryId = "cat_offers",
+            categoryName = "Special Offers",
+            canvasWidth = 1080,
+            canvasHeight = 1080,
+            background = PosterBackground(
+                type = BackgroundType.GRADIENT_LINEAR,
+                color1Hex = "#4C0519",
+                color2Hex = "#0F172A",
+                angleDegrees = 135f
+            ),
+            isFeatured = true,
+            isPro = true,
+            usageCount = 3120,
+            favoriteCount = 890,
+            rating = 4.9f,
+            status = TemplateStatus.APPROVED,
+            permissionLevel = TemplatePermissionLevel.FULLY_EDITABLE,
+            elements = listOf(
+                CanvasElement(
+                    id = "el_sale_pill",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#F43F5E",
+                    shapeCornerRadiusDp = 12f,
+                    xRatio = 0.1f,
+                    yRatio = 0.1f,
+                    widthRatio = 0.4f,
+                    heightRatio = 0.05f,
+                    layerOrder = 0
+                ),
+                CanvasElement(
+                    id = "el_sale_pill_txt",
+                    type = ElementType.TEXT,
+                    text = "⚡ LIMITED 48H ONLY",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#FFFFFF",
+                    isBold = true,
+                    xRatio = 0.12f,
+                    yRatio = 0.11f,
+                    widthRatio = 0.36f,
+                    heightRatio = 0.04f,
+                    layerOrder = 1
+                ),
+                CanvasElement(
+                    id = "el_sale_title",
+                    type = ElementType.TEXT,
+                    text = "MEGA FLASH\nDISCOUNT",
+                    fontSizeSp = 30f,
+                    fontColorHex = "#FFFFFF",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_sale_title",
+                    xRatio = 0.1f,
+                    yRatio = 0.18f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.16f,
+                    layerOrder = 2
+                ),
+                CanvasElement(
+                    id = "el_sale_disc_badge",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#FBBF24",
+                    shapeCornerRadiusDp = 18f,
+                    xRatio = 0.1f,
+                    yRatio = 0.36f,
+                    widthRatio = 0.55f,
+                    heightRatio = 0.18f,
+                    layerOrder = 3
+                ),
+                CanvasElement(
+                    id = "el_sale_disc_txt",
+                    type = ElementType.TEXT,
+                    text = "UP TO 70% OFF\nSTOREWIDE",
+                    fontSizeSp = 20f,
+                    fontColorHex = "#0F172A",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_sale_disc",
+                    xRatio = 0.13f,
+                    yRatio = 0.39f,
+                    widthRatio = 0.49f,
+                    heightRatio = 0.12f,
+                    layerOrder = 4
+                ),
+                CanvasElement(
+                    id = "el_sale_code_card",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#1E293B",
+                    strokeColorHex = "#F43F5E",
+                    strokeWidthDp = 2f,
+                    shapeCornerRadiusDp = 10f,
+                    xRatio = 0.1f,
+                    yRatio = 0.58f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.08f,
+                    layerOrder = 5
+                ),
+                CanvasElement(
+                    id = "el_sale_code_txt",
+                    type = ElementType.TEXT,
+                    text = "USE PROMO CODE: FLASH2026 AT CHECKOUT",
+                    fontSizeSp = 13f,
+                    fontColorHex = "#F8FAFC",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_sale_code",
+                    xRatio = 0.12f,
+                    yRatio = 0.60f,
+                    widthRatio = 0.76f,
+                    heightRatio = 0.05f,
+                    layerOrder = 6
+                ),
+                CanvasElement(
+                    id = "el_sale_cta",
+                    type = ElementType.TEXT,
+                    text = "Shop Online at: www.brandstore.com • Free Express Shipping",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#94A3B8",
+                    xRatio = 0.1f,
+                    yRatio = 0.70f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.06f,
+                    layerOrder = 7
+                )
+            ),
+            editableFields = listOf(
+                EditableField("field_sale_title", "el_sale_title", FieldType.TEXT, "Sale Headline", "MEGA FLASH\nDISCOUNT"),
+                EditableField("field_sale_disc", "el_sale_disc_txt", FieldType.TEXT, "Discount Amount", "UP TO 70% OFF\nSTOREWIDE"),
+                EditableField("field_sale_code", "el_sale_code_txt", FieldType.TEXT, "Voucher / Code", "USE PROMO CODE: FLASH2026")
+            )
+        ),
+
+        // 10. Artisan Coffee & Bakery Grand Opening (Square 1:1)
+        Template(
+            templateId = "tmpl_coffee_roasters",
+            creatorId = "creator_studio_x",
+            creatorName = "Studio X Designs",
+            name = "Artisan Coffee & Bakery Opening",
+            description = "Warm cafe poster with aesthetic typography and discount offer for foodies.",
+            categoryId = "cat_food",
+            categoryName = "Food & Cafe",
+            canvasWidth = 1080,
+            canvasHeight = 1080,
+            background = PosterBackground(
+                type = BackgroundType.SOLID,
+                color1Hex = "#1C1917"
+            ),
+            isFeatured = false,
+            isPro = false,
+            usageCount = 1420,
+            favoriteCount = 490,
+            rating = 4.9f,
+            status = TemplateStatus.APPROVED,
+            permissionLevel = TemplatePermissionLevel.FULLY_EDITABLE,
+            elements = listOf(
+                CanvasElement(
+                    id = "el_cof_bg_card",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#292524",
+                    strokeColorHex = "#78350F",
+                    strokeWidthDp = 1.5f,
+                    shapeCornerRadiusDp = 20f,
+                    xRatio = 0.08f,
+                    yRatio = 0.08f,
+                    widthRatio = 0.84f,
+                    heightRatio = 0.84f,
+                    layerOrder = 0
+                ),
+                CanvasElement(
+                    id = "el_cof_tag",
+                    type = ElementType.TEXT,
+                    text = "☕ SPECIALTY ROASTERS & PASTRY",
+                    fontSizeSp = 11f,
+                    fontColorHex = "#D97706",
+                    isBold = true,
+                    letterSpacingSp = 1.5f,
+                    xRatio = 0.15f,
+                    yRatio = 0.15f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.05f,
+                    layerOrder = 1
+                ),
+                CanvasElement(
+                    id = "el_cof_title",
+                    type = ElementType.TEXT,
+                    text = "VELVET BEAN\nCAFE & ROASTERY",
+                    fontSizeSp = 24f,
+                    fontColorHex = "#FEF3C7",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_cof_title",
+                    xRatio = 0.15f,
+                    yRatio = 0.22f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.14f,
+                    layerOrder = 2
+                ),
+                CanvasElement(
+                    id = "el_cof_desc",
+                    type = ElementType.TEXT,
+                    text = "Join us for our Grand Opening! Enjoy artisanal single-origin pour-overs, sourdough croissants, and gourmet matcha lattes.",
+                    fontSizeSp = 13f,
+                    fontColorHex = "#A8A29E",
+                    isEditableField = true,
+                    editableFieldId = "field_cof_desc",
+                    xRatio = 0.15f,
+                    yRatio = 0.38f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.14f,
+                    layerOrder = 3
+                ),
+                CanvasElement(
+                    id = "el_cof_badge",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#D97706",
+                    shapeCornerRadiusDp = 10f,
+                    xRatio = 0.15f,
+                    yRatio = 0.54f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.07f,
+                    layerOrder = 4
+                ),
+                CanvasElement(
+                    id = "el_cof_badge_txt",
+                    type = ElementType.TEXT,
+                    text = "FREE CROISSANT WITH ANY COFFEE 🥐",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#1C1917",
+                    isBold = true,
+                    xRatio = 0.15f,
+                    yRatio = 0.555f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.05f,
+                    layerOrder = 5
+                ),
+                CanvasElement(
+                    id = "el_cof_loc",
+                    type = ElementType.TEXT,
+                    text = "📍 128 Maple Boulevard • Mon-Sun 7AM-8PM • @velvetbeancafe",
+                    fontSizeSp = 11f,
+                    fontColorHex = "#D6D3D1",
+                    isEditableField = true,
+                    editableFieldId = "field_cof_loc",
+                    xRatio = 0.15f,
+                    yRatio = 0.65f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.08f,
+                    layerOrder = 6
+                )
+            ),
+            editableFields = listOf(
+                EditableField("field_cof_title", "el_cof_title", FieldType.TEXT, "Cafe / Brand Name", "VELVET BEAN\nCAFE & ROASTERY"),
+                EditableField("field_cof_desc", "el_cof_desc", FieldType.TEXT, "Opening Description", "Join us for our Grand Opening!"),
+                EditableField("field_cof_loc", "el_cof_loc", FieldType.ADDRESS, "Address & Handle", "📍 128 Maple Boulevard")
+            )
+        ),
+
+        // 11. VIP Golden Birthday Celebration (Story 9:16)
+        Template(
+            templateId = "tmpl_vip_birthday",
+            creatorId = "creator_studio_x",
+            creatorName = "Studio X Designs",
+            name = "VIP Golden Birthday Bash",
+            description = "Luxurious gold glitter and dark aesthetic celebration invitation poster.",
+            categoryId = "cat_birthday",
+            categoryName = "Birthday",
+            canvasWidth = 1080,
+            canvasHeight = 1920,
+            background = PosterBackground(
+                type = BackgroundType.GRADIENT_RADIAL,
+                color1Hex = "#2E1065",
+                color2Hex = "#0F172A"
+            ),
+            isFeatured = false,
+            isPro = true,
+            usageCount = 2200,
+            favoriteCount = 730,
+            rating = 4.9f,
+            status = TemplateStatus.APPROVED,
+            permissionLevel = TemplatePermissionLevel.FULLY_EDITABLE,
+            elements = listOf(
+                CanvasElement(
+                    id = "el_bday_tag",
+                    type = ElementType.TEXT,
+                    text = "✨ YOU ARE CORDIALLY INVITED TO ✨",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#FBBF24",
+                    isBold = true,
+                    letterSpacingSp = 1.5f,
+                    xRatio = 0.1f,
+                    yRatio = 0.12f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.04f,
+                    layerOrder = 0
+                ),
+                CanvasElement(
+                    id = "el_bday_title",
+                    type = ElementType.TEXT,
+                    text = "SOPHIA'S 25TH\nGOLDEN BASH",
+                    fontSizeSp = 28f,
+                    fontColorHex = "#FFFFFF",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_bday_name",
+                    xRatio = 0.1f,
+                    yRatio = 0.18f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.12f,
+                    layerOrder = 1
+                ),
+                CanvasElement(
+                    id = "el_bday_card",
+                    type = ElementType.SHAPE,
+                    shapeType = ShapeType.ROUNDED_RECT,
+                    fillColorHex = "#1E1B4B",
+                    strokeColorHex = "#A855F7",
+                    strokeWidthDp = 1.5f,
+                    shapeCornerRadiusDp = 18f,
+                    xRatio = 0.1f,
+                    yRatio = 0.32f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.28f,
+                    layerOrder = 2
+                ),
+                CanvasElement(
+                    id = "el_bday_date",
+                    type = ElementType.TEXT,
+                    text = "🍸 SATURDAY, NOVEMBER 21\nDoors Open at 8:00 PM",
+                    fontSizeSp = 15f,
+                    fontColorHex = "#FBBF24",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_bday_date",
+                    xRatio = 0.15f,
+                    yRatio = 0.36f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.08f,
+                    layerOrder = 3
+                ),
+                CanvasElement(
+                    id = "el_bday_loc",
+                    type = ElementType.TEXT,
+                    text = "📍 The Skyline Penthouse Lounge\n88 Infinity Tower, 45th Floor",
+                    fontSizeSp = 13f,
+                    fontColorHex = "#E2E8F0",
+                    isEditableField = true,
+                    editableFieldId = "field_bday_loc",
+                    xRatio = 0.15f,
+                    yRatio = 0.46f,
+                    widthRatio = 0.7f,
+                    heightRatio = 0.08f,
+                    layerOrder = 4
+                ),
+                CanvasElement(
+                    id = "el_bday_rsvp",
+                    type = ElementType.TEXT,
+                    text = "Dress Code: Elegant Black & Gold • RSVP to (555) 987-6543",
+                    fontSizeSp = 12f,
+                    fontColorHex = "#C084FC",
+                    isBold = true,
+                    isEditableField = true,
+                    editableFieldId = "field_bday_rsvp",
+                    xRatio = 0.1f,
+                    yRatio = 0.63f,
+                    widthRatio = 0.8f,
+                    heightRatio = 0.06f,
+                    layerOrder = 5
+                )
+            ),
+            editableFields = listOf(
+                EditableField("field_bday_name", "el_bday_title", FieldType.TEXT, "Celebrant & Event", "SOPHIA'S 25TH\nGOLDEN BASH"),
+                EditableField("field_bday_date", "el_bday_date", FieldType.DATE, "Date & Time", "🍸 SATURDAY, NOVEMBER 21"),
+                EditableField("field_bday_loc", "el_bday_loc", FieldType.ADDRESS, "Venue Location", "📍 The Skyline Penthouse Lounge"),
+                EditableField("field_bday_rsvp", "el_bday_rsvp", FieldType.PHONE, "RSVP & Dress Code", "RSVP to (555) 987-6543")
             )
         )
     )

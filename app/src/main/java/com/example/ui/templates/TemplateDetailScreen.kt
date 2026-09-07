@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -66,14 +67,8 @@ import com.example.data.repository.PosterRepository
 import com.example.domain.models.Template
 import com.example.domain.models.UserRole
 import com.example.ui.components.PosterCanvasView
-import com.example.ui.theme.AccentBlack
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.CardBorderLight
-import com.example.ui.theme.PrimaryBlack
-import com.example.ui.theme.SurfaceLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
-import com.example.ui.theme.TextTertiaryLight
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.ui.theme.*
 import com.example.utils.CanvasUtils
 import kotlinx.coroutines.launch
 
@@ -84,7 +79,8 @@ fun TemplateDetailScreen(
     repository: PosterRepository,
     onBack: () -> Unit,
     onUseTemplate: (String) -> Unit,
-    onOpenEditor: (String) -> Unit
+    onOpenEditor: (String) -> Unit,
+    onViewHistory: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -173,9 +169,9 @@ fun TemplateDetailScreen(
                         shape = RoundedCornerShape(14.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderLight)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextPrimaryLight)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Editor", fontWeight = FontWeight.SemiBold)
+                        Text("Edit", fontWeight = FontWeight.SemiBold, color = TextPrimaryLight)
                     }
 
                     Button(
@@ -185,11 +181,31 @@ fun TemplateDetailScreen(
                             .height(50.dp)
                             .testTag("use_template_form_btn"),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlack)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlack)
                     ) {
                         Icon(Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Use Template", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+
+                // View History button (for creators/admins)
+                if (currentUser.role == UserRole.CREATOR || currentUser.role == UserRole.ADMIN) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { onViewHistory(templateId) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderLight)
+                        ) {
+                            Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp), tint = TextSecondaryLight)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("View Version History", fontWeight = FontWeight.SemiBold, color = TextSecondaryLight, fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -209,13 +225,14 @@ fun TemplateDetailScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
-                // Large Poster Preview
+                // Large Poster Preview - Click anywhere to open editor
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
                         .border(1.dp, CardBorderLight, RoundedCornerShape(24.dp))
                         .background(SurfaceLight)
+                        .clickable { onOpenEditor(templateId) }
                         .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -227,11 +244,31 @@ fun TemplateDetailScreen(
                         elements = currentTmpl.elements,
                         isInteractive = false
                     )
+
+                    // Touch Indicator Pill
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 12.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF0F172A).copy(alpha = 0.85f))
+                            .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "👆 Tap anywhere to edit & customize",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Title & Category Badge
+                // Title, Creator & Permission Level
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -245,25 +282,81 @@ fun TemplateDetailScreen(
                             color = TextPrimaryLight
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Created by ${currentTmpl.creatorName}",
-                            fontSize = 13.sp,
-                            color = TextSecondaryLight
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "By ${currentTmpl.creatorName}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextSecondaryLight
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0xFFEFF6FF))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text("Verified Creator", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                            }
+                        }
                     }
 
-                    Box(
+                    Column(horizontalAlignment = Alignment.End) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFEFF6FF))
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = currentTmpl.categoryName,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2563EB)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Customization Permission Level Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderLight)
+                ) {
+                    Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFEFF6FF))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = currentTmpl.categoryName,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2563EB)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(android.graphics.Color.parseColor(currentTmpl.permissionLevel.badgeColorHex)))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = currentTmpl.permissionLevel.label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimaryLight
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = currentTmpl.permissionLevel.description,
+                                fontSize = 11.sp,
+                                color = TextSecondaryLight
+                            )
+                        }
                     }
                 }
 
@@ -320,9 +413,9 @@ fun TemplateDetailScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Editable Fields detected
+                // Dynamic Customizable Fields
                 Text(
-                    text = "Dynamic Customizable Fields (${currentTmpl.editableFields.size})",
+                    text = "Dynamic Form Fields (${currentTmpl.editableFields.size})",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimaryLight
@@ -334,28 +427,49 @@ fun TemplateDetailScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(SurfaceLight)
-                                .border(1.dp, CardBorderLight, RoundedCornerShape(12.dp))
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .border(1.dp, CardBorderLight, RoundedCornerShape(14.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(field.label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimaryLight)
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 10.dp)
+                            ) {
                                 Text(
-                                    text = "Type: ${field.type.name.lowercase().capitalize()} • Default: ${field.defaultValue.take(24)}...",
+                                    text = field.label,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimaryLight,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Type: ${field.type.name.lowercase().replaceFirstChar { it.uppercase() }} • Default: ${field.defaultValue}",
                                     fontSize = 11.sp,
-                                    color = TextTertiaryLight
+                                    color = TextTertiaryLight,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0xFFF3F4F6))
-                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AccentBlueBg)
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
-                                Text("Auto-Form", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondaryLight)
+                                Text(
+                                    text = "Auto-Form",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentBlue,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
                         }
                     }

@@ -60,14 +60,7 @@ import com.example.data.repository.PosterRepository
 import com.example.domain.models.Project
 import com.example.ui.components.EmptyStateView
 import com.example.ui.components.PosterCanvasView
-import com.example.ui.theme.AccentBlack
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.CardBorderLight
-import com.example.ui.theme.PrimaryBlack
-import com.example.ui.theme.SurfaceLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
-import com.example.ui.theme.TextTertiaryLight
+import com.example.ui.theme.*
 import com.example.utils.CanvasUtils
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -174,6 +167,10 @@ fun ProjectsScreen(
                     onButtonClick = onCreateNew
                 )
             } else {
+                var projectToRename by remember { mutableStateOf<Project?>(null) }
+                var renameInput by remember { mutableStateOf("") }
+                var projectToDelete by remember { mutableStateOf<Project?>(null) }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 90.dp),
@@ -198,13 +195,128 @@ fun ProjectsScreen(
                                     CanvasUtils.shareImageUri(context, uri, "Share '${project.projectName}'")
                                 }
                             },
-                            onDelete = {
+                            onRename = {
+                                projectToRename = project
+                                renameInput = project.projectName
+                            },
+                            onDuplicate = {
                                 scope.launch {
-                                    repository.deleteProject(project.projectId)
-                                    Toast.makeText(context, "Project deleted", Toast.LENGTH_SHORT).show()
+                                    val copy = repository.duplicateProject(project.projectId)
+                                    if (copy != null) {
+                                        Toast.makeText(context, "Duplicated '${copy.projectName}'", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
+                            },
+                            onDelete = {
+                                projectToDelete = project
                             }
                         )
+                    }
+                }
+
+                // Rename Dialog
+                if (projectToRename != null) {
+                    androidx.compose.ui.window.Dialog(onDismissRequest = { projectToRename = null }) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = SurfaceLight)
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text("Rename Project", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = renameInput,
+                                    onValueChange = { renameInput = it },
+                                    label = { Text("Project Title", color = TextSecondaryLight) },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = TextPrimaryLight,
+                                        unfocusedTextColor = TextPrimaryLight,
+                                        focusedContainerColor = SurfaceLight,
+                                        unfocusedContainerColor = SurfaceLight,
+                                        focusedBorderColor = PrimaryBlack,
+                                        unfocusedBorderColor = BorderLight,
+                                        cursorColor = PrimaryBlack
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    androidx.compose.material3.OutlinedButton(onClick = { projectToRename = null }) {
+                                        Text("Cancel")
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    androidx.compose.material3.Button(
+                                        onClick = {
+                                            val target = projectToRename ?: return@Button
+                                            if (renameInput.isNotBlank()) {
+                                                scope.launch {
+                                                    repository.renameProject(target.projectId, renameInput)
+                                                    projectToRename = null
+                                                    Toast.makeText(context, "Renamed successfully", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = AccentBlack)
+                                    ) {
+                                        Text("Save")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Delete Confirmation Dialog
+                if (projectToDelete != null) {
+                    androidx.compose.ui.window.Dialog(onDismissRequest = { projectToDelete = null }) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = SurfaceLight)
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text("Delete Project?", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimaryLight)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Are you sure you want to delete '${projectToDelete?.projectName}'? This action cannot be undone.",
+                                    fontSize = 13.sp,
+                                    color = TextSecondaryLight
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    androidx.compose.material3.OutlinedButton(onClick = { projectToDelete = null }) {
+                                        Text("Cancel")
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    androidx.compose.material3.Button(
+                                        onClick = {
+                                            val target = projectToDelete ?: return@Button
+                                            scope.launch {
+                                                repository.deleteProject(target.projectId)
+                                                projectToDelete = null
+                                                Toast.makeText(context, "Project deleted", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                                    ) {
+                                        Text("Delete")
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -231,8 +343,11 @@ private fun ProjectItemCard(
     project: Project,
     onOpen: () -> Unit,
     onShare: () -> Unit,
+    onRename: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showMenu by remember { mutableStateOf(false) }
     val dateStr = remember(project.updatedAt) {
         SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(project.updatedAt))
     }
@@ -265,20 +380,26 @@ private fun ProjectItemCard(
                     fieldValues = project.fieldValues,
                     isInteractive = false
                 )
+
+                // Status tag
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (project.isDraft) Color(0xFFF59E0B) else Color(0xFF059669))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (project.isDraft) "Draft" else "Saved",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = project.projectName,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimaryLight,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -286,20 +407,68 @@ private fun ProjectItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = dateStr,
-                    fontSize = 11.sp,
-                    color = TextTertiaryLight
+                    text = project.projectName,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryLight,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
 
-                Row {
-                    IconButton(onClick = onShare, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Share, contentDescription = "Share", tint = TextSecondaryLight, modifier = Modifier.size(16.dp))
+                Box {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Options",
+                            modifier = Modifier.size(14.dp),
+                            tint = TextSecondaryLight
+                        )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Rename") },
+                            onClick = {
+                                showMenu = false
+                                onRename()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Duplicate") },
+                            onClick = {
+                                showMenu = false
+                                onDuplicate()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Share / Export") },
+                            onClick = {
+                                showMenu = false
+                                onShare()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete", color = Color(0xFFDC2626)) },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            }
+                        )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = dateStr,
+                fontSize = 11.sp,
+                color = TextTertiaryLight
+            )
         }
     }
 }

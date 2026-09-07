@@ -27,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -58,14 +60,8 @@ import com.example.ui.components.CleanHeader
 import com.example.ui.components.CleanSearchBar
 import com.example.ui.components.PosterCanvasView
 import com.example.ui.components.TemplateCard
-import com.example.ui.theme.AccentBlack
-import com.example.ui.theme.BackgroundLight
-import com.example.ui.theme.CardBorderLight
-import com.example.ui.theme.PrimaryBlack
-import com.example.ui.theme.SurfaceLight
-import com.example.ui.theme.TextPrimaryLight
-import com.example.ui.theme.TextSecondaryLight
-import com.example.ui.theme.TextTertiaryLight
+import com.example.ui.theme.*
+import androidx.compose.ui.graphics.Brush
 
 @Composable
 fun HomeScreen(
@@ -82,7 +78,7 @@ fun HomeScreen(
 ) {
     val currentUser by repository.currentUser.collectAsState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val allTemplates by repository.getApprovedTemplates().collectAsState(initial = emptyList())
+    val allTemplates by repository.getApprovedTemplates().collectAsState()
     val categories by repository.categories.collectAsState()
     val userProjects by repository.getProjectsByUser(currentUser.id).collectAsState(initial = emptyList())
     val favorites by repository.getFavoriteTemplates(currentUser.id).collectAsState(initial = emptyList())
@@ -108,6 +104,8 @@ fun HomeScreen(
     val featuredTemplates = remember(allTemplates) {
         allTemplates.filter { it.isFeatured }
     }
+
+    val popularCreators = remember { repository.getPopularCreators() }
 
     Box(
         modifier = Modifier
@@ -138,11 +136,14 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 6.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFFEF2F2))
-                            .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFFE53E3E), Color(0xFFFC7C33))
+                                )
+                            )
                             .clickable { onNavigateToAdmin() }
-                            .padding(14.dp)
+                            .padding(16.dp)
                             .testTag("admin_banner_btn")
                     ) {
                         Row(
@@ -152,22 +153,22 @@ fun HomeScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "🛡️ Admin Control Panel",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF991B1B)
+                                    text = "Admin Control Panel",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
                                 )
                                 Text(
-                                    text = "Moderate pending templates, categories & reports",
+                                    text = "Moderate templates, categories & reports",
                                     fontSize = 11.sp,
-                                    color = Color(0xFFB91C1C)
+                                    color = Color.White.copy(alpha = 0.85f)
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Default.ArrowForward,
                                 contentDescription = null,
-                                tint = Color(0xFF991B1B),
-                                modifier = Modifier.size(18.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -178,11 +179,14 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 6.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFEFF6FF))
-                            .border(1.dp, Color(0xFF93C5FD), RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFF4361EE), Color(0xFF7C3AED))
+                                )
+                            )
                             .clickable { onNavigateToCreator() }
-                            .padding(14.dp)
+                            .padding(16.dp)
                             .testTag("creator_banner_btn")
                     ) {
                         Row(
@@ -192,22 +196,22 @@ fun HomeScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "🎨 Creator Studio Dashboard",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E40AF)
+                                    text = "Creator Studio",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
                                 )
                                 Text(
-                                    text = "Design templates, define dynamic fields & track analytics",
+                                    text = "Design templates, publish & track analytics",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF2563EB)
+                                    color = Color.White.copy(alpha = 0.85f)
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Default.ArrowForward,
                                 contentDescription = null,
-                                tint = Color(0xFF1E40AF),
-                                modifier = Modifier.size(18.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -233,7 +237,200 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // 4. Featured Section Header
+            // 4. Continue Editing (Recent Projects)
+            if (userProjects.isNotEmpty() && searchQuery.isEmpty() && selectedCategoryId == "cat_all") {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Continue Editing",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimaryLight
+                        )
+                        Text(
+                            text = "My Projects",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextTertiaryLight,
+                            modifier = Modifier.clickable { onNavigateToProjects() }
+                        )
+                    }
+
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // "+ New Project" Card
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 120.dp, height = 150.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .border(1.5.dp, BorderLight, RoundedCornerShape(20.dp))
+                                    .background(SurfaceLight)
+                                    .clickable { onNavigateToEditor(null, null) }
+                                    .testTag("new_project_card_btn"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(SurfaceVariantLight),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "New Project",
+                                            tint = AccentBlue,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Blank Canvas",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimaryLight
+                                    )
+                                    Text(
+                                        text = "Create from zero",
+                                        fontSize = 10.sp,
+                                        color = TextTertiaryLight
+                                    )
+                                }
+                            }
+                        }
+
+                        // Project Cards
+                        items(userProjects.take(6)) { project ->
+                            Card(
+                                modifier = Modifier
+                                    .size(width = 120.dp, height = 150.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable { onNavigateToEditor(null, project.projectId) }
+                                    .testTag("recent_proj_${project.projectId}"),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderLight)
+                            ) {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f)
+                                            .background(Color(0xFF1E293B))
+                                    ) {
+                                        PosterCanvasView(
+                                            modifier = Modifier.fillMaxSize(),
+                                            canvasWidth = project.canvasWidth,
+                                            canvasHeight = project.canvasHeight,
+                                            background = project.background,
+                                            elements = project.elements,
+                                            fieldValues = project.fieldValues,
+                                            isInteractive = false
+                                        )
+
+                                        // Status badge
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(6.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(if (project.isDraft) Color(0xFFF59E0B) else Color(0xFF059669))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = if (project.isDraft) "Draft" else "Saved",
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = project.projectName,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimaryLight,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = "Tap to edit",
+                                            fontSize = 9.sp,
+                                            color = TextTertiaryLight
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            // 5. Featured Templates (Horizontal Carousel)
+            if (featuredTemplates.isNotEmpty() && searchQuery.isEmpty() && selectedCategoryId == "cat_all") {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Featured Templates",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimaryLight
+                        )
+                        Text(
+                            text = "See All",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextTertiaryLight,
+                            modifier = Modifier.clickable { onNavigateToTemplates() }
+                        )
+                    }
+
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(featuredTemplates) { tmpl ->
+                            Box(modifier = Modifier.width(180.dp)) {
+                                TemplateCard(
+                                    template = tmpl,
+                                    isFavorite = tmpl.templateId in favoriteIds,
+                                    onCardClick = { onNavigateToTemplateDetail(tmpl.templateId) },
+                                    onFavoriteToggle = {
+                                        scope.launch {
+                                            repository.toggleFavorite(tmpl.templateId, currentUser.id)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+
+            // 6. Trending Templates (Grid or filtered results)
             item {
                 Row(
                     modifier = Modifier
@@ -243,23 +440,20 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (searchQuery.isNotEmpty() || selectedCategoryId != "cat_all") "Matching Templates" else "Featured Templates",
+                        text = if (searchQuery.isNotEmpty() || selectedCategoryId != "cat_all") "Matching Templates" else "Trending Templates",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimaryLight
                     )
                     Text(
-                        text = "See All",
+                        text = "Explore",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = TextTertiaryLight,
                         modifier = Modifier.clickable { onNavigateToTemplates() }
                     )
                 }
-            }
 
-            // 5. Featured 2-Column Grid (or Search Results)
-            item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -268,10 +462,9 @@ fun HomeScreen(
                     val displayList = if (searchQuery.isNotEmpty() || selectedCategoryId != "cat_all") {
                         filteredTemplates
                     } else {
-                        featuredTemplates.ifEmpty { allTemplates.take(4) }
+                        allTemplates.sortedByDescending { it.usageCount }.take(6)
                     }
 
-                    // Display rows of 2
                     val chunked = displayList.chunked(2)
                     for (row in chunked) {
                         Row(
@@ -302,104 +495,72 @@ fun HomeScreen(
                 }
             }
 
-            // 6. Recent Projects Section
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            // 7. Popular Creators Section
+            if (searchQuery.isEmpty() && selectedCategoryId == "cat_all") {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Recent Projects",
+                        text = "Popular Creators",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimaryLight
+                        color = TextPrimaryLight,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
                     )
-                    if (userProjects.isNotEmpty()) {
-                        Text(
-                            text = "View All",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextTertiaryLight,
-                            modifier = Modifier.clickable { onNavigateToProjects() }
-                        )
-                    }
-                }
 
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    // Quick "+ New Project" blank canvas card
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .size(110.dp)
-                                .clip(RoundedCornerShape(22.dp))
-                                .border(2.dp, Color(0xFFE5E7EB), RoundedCornerShape(22.dp))
-                                .background(SurfaceLight)
-                                .clickable { onNavigateToEditor(null, null) }
-                                .testTag("new_project_canvas_btn"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "New Project",
-                                    tint = TextTertiaryLight,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "New Project",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextSecondaryLight
-                                )
-                            }
-                        }
-                    }
-
-                    // Existing Projects
-                    items(userProjects) { project ->
-                        Box(
-                            modifier = Modifier
-                                .size(110.dp)
-                                .clip(RoundedCornerShape(22.dp))
-                                .border(1.dp, CardBorderLight, RoundedCornerShape(22.dp))
-                                .background(Color(0xFF1E293B))
-                                .clickable { onNavigateToEditor(null, project.projectId) }
-                                .testTag("project_item_${project.projectId}")
-                        ) {
-                            // Poster mini canvas
-                            PosterCanvasView(
-                                modifier = Modifier.fillMaxSize(),
-                                canvasWidth = project.canvasWidth,
-                                canvasHeight = project.canvasHeight,
-                                background = project.background,
-                                elements = project.elements,
-                                fieldValues = project.fieldValues,
-                                isInteractive = false
-                            )
-
-                            // Title overlay
-                            Box(
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(popularCreators) { creator ->
+                            Card(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.BottomCenter)
-                                    .background(Color.Black.copy(alpha = 0.6f))
-                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                                    .width(200.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .clickable { onNavigateToTemplates() },
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorderLight)
                             ) {
-                                Text(
-                                    text = project.projectName,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.White,
-                                    maxLines = 1
-                                )
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(AccentBlueBg),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = creator.name.take(1),
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = AccentBlue
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = creator.name,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextPrimaryLight,
+                                                maxLines = 1
+                                            )
+                                            Text(
+                                                text = "${creator.totalTemplatesCreated} Templates",
+                                                fontSize = 11.sp,
+                                                color = TextSecondaryLight
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = creator.bio,
+                                        fontSize = 11.sp,
+                                        color = TextTertiaryLight,
+                                        maxLines = 2
+                                    )
+                                }
                             }
                         }
                     }
@@ -407,22 +568,22 @@ fun HomeScreen(
             }
         }
 
-        // Floating Action Button (+) for Quick Create / Custom Poster
+        // Floating Action Button
         FloatingActionButton(
             onClick = { onNavigateToEditor(null, null) },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 80.dp, end = 20.dp)
-                .size(56.dp)
+                .padding(bottom = 84.dp, end = 20.dp)
+                .size(58.dp)
                 .testTag("fab_quick_create"),
             shape = RoundedCornerShape(18.dp),
-            containerColor = AccentBlack,
+            containerColor = AccentBlue,
             contentColor = Color.White
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Quick Create Poster",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(26.dp)
             )
         }
     }

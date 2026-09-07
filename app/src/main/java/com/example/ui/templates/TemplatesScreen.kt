@@ -73,7 +73,7 @@ fun TemplatesScreen(
 ) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val currentUser by repository.currentUser.collectAsState()
-    val allTemplates by repository.getApprovedTemplates().collectAsState(initial = emptyList())
+    val allTemplates by repository.getApprovedTemplates().collectAsState()
     val categories by repository.categories.collectAsState()
     val favorites by repository.getFavoriteTemplates(currentUser.id).collectAsState(initial = emptyList())
     val favoriteIds = remember(favorites) { favorites.map { it.templateId }.toSet() }
